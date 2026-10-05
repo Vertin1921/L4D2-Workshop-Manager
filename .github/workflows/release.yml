@@ -1,0 +1,116 @@
+name: Release
+
+# 自动发布：推送 v* 标签，或在 Actions 页面手动触发
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 1.1.1；留空则用 Directory.Build.props 里的当前版本）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: 取出源码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 安装 .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: 计算版本号
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $manual = "${{ github.event.inputs.version }}"
+
+          if ($manual -and $manual.Trim() -ne '') {
+            $v = $manual.Trim()
+          }
+          elseif ($tag -like 'v*') {
+            $v = $tag.TrimStart('v')
+          }
+          else {
+            $v = ([regex]::Match((Get-Content Directory.Build.props -Raw), '<Version>([\d.]+)</Version>')).Groups[1].Value
+          }
+
+          if ($v -notmatch '^\d+\.\d+\.\d+$') { throw "版本号格式不正确：$v（应为 x.y.z）" }
+
+          "version=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "本次发布版本：$v"
+
+      - name: 写入版本号
+        shell: pwsh
+        run: |
+          ./build/bump-version.ps1 -NewVersion '${{ steps.ver.outputs.version }}' -NoBuild
+
+      - name: 构建并打包（安装程序 + 便携版）
+        shell: pwsh
+        run: |
+          ./build/build-release.ps1 -SingleFileInstaller -SkipTests
+          if ($LASTEXITCODE -ne 0) { throw "打包失败，退出码 $LASTEXITCODE" }
+
+      - name: 生成 SHA256 校验清单
+        shell: pwsh
+        run: |
+          $targets = Get-ChildItem -Path artifacts -Recurse -File |
+                     Where-Object { $_.Extension -in '.exe', '.zip' -and $_.FullName -notmatch 'Uninstall-publish' } |
+                     Sort-Object FullName
+
+          $lines = foreach ($f in $targets) {
+            $hash = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower()
+            $rel = $f.FullName.Substring((Resolve-Path artifacts).Path.Length + 1).Replace('\', '/')
+            "{0}  {1}" -f $hash, $rel
+          }
+
+          $lines | Set-Content -Path artifacts/SHA256SUMS.txt -Encoding UTF8
+          Get-Content artifacts/SHA256SUMS.txt
+
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: L4D2 Mod Manager v${{ steps.ver.outputs.version }}
+          body: |
+            ## L4D2 Mod Manager v${{ steps.ver.outputs.version }}
+
+            本版本由 GitHub Actions 于云端自动构建。
+
+            ### 下载哪个？
+            | 文件 | 说明 |
+            | --- | --- |
+            | `Setup.exe` | **推荐**：单文件安装程序，双击安装（含独立卸载程序） |
+            | `Setup.zip` | 安装包压缩版（内含安装程序 + 独立卸载程序），解压后运行 |
+            | `L4D2ModManager-win-x64-portable.zip` | 便携版：解压到任意目录直接运行，不写注册表 |
+
+            ### ⚠️ 关于杀毒软件报毒 / SmartScreen
+            本程序**未做商业代码签名**，会被部分杀毒软件误报、并被 SmartScreen 拦截。
+            误报原因与处理方式见仓库 README 的「关于杀毒软件报毒 / SmartScreen 提示」章节
+            （可添加 Defender 排除项、解除文件锁定、使用文件夹版安装包，或自行编译）。
+
+            ### 校验下载完整性
+            下载后可用 `SHA256SUMS.txt` 核对：
+
+            ```powershell
+            Get-FileHash .\Setup.exe -Algorithm SHA256
+            ```
+          files: |
+            artifacts/Setup.exe
+            artifacts/Setup.zip
+            artifacts/L4D2ModManager-win-x64-portable.zip
+            artifacts/SHA256SUMS.txt
+          draft: false
+          generate_release_notes: true

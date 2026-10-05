@@ -9,6 +9,38 @@ Mod、缩略图、拖放安装，全部数据用 JSON 保存。
 
 ---
 
+
+---
+
+## 自动发布（GitHub Actions）
+
+仓库内置 `.github/workflows/release.yml`：**推一个 tag，云端自动编译、打包并发布 Release**（附 SHA256 校验清单）。
+
+```powershell
+# 1) 本地升版本号（会同步改 Directory.Build.props 并重新打包，验证无误）
+.\build\bump-version.ps1 -Minor          # 1.1.0 -> 1.2.0
+
+# 2) 提交后用 tag 触发云端发布
+git add -A
+git commit -m "chore(release): v1.2.0"
+git tag v1.2.0
+git push origin main --tags
+```
+
+发布内容：
+
+| 文件 | 说明 |
+| --- | --- |
+| `Setup.exe` | 单文件安装程序（含独立卸载程序） |
+| `Setup.zip` | 安装包压缩版（安装程序 + 独立卸载程序） |
+| `L4D2ModManager-win-x64-portable.zip` | 便携版（解压即用，不写注册表） |
+| `SHA256SUMS.txt` | 全部产物的 SHA256，用于校验下载完整性 |
+
+也可以在 GitHub 的 **Actions → Release → Run workflow** 里手动填版本号触发（无需打 tag）。
+
+> 云端发布的是**未签名**版本：只有购买受信任 CA 的代码签名证书才能消除别人电脑上的 SmartScreen 提示；
+> 想用自签名证书，可在本地 `build/build-release.ps1 -Sign` 打包（证书只在本机受信任）。
+
 ## ⚠️ 关于杀毒软件报毒 / SmartScreen 提示（重要，请先读）
 
 **本程序会被部分杀毒软件报毒、并被 Windows SmartScreen 拦截，这是误报。** 原因很具体：
