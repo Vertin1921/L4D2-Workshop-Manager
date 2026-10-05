@@ -9,7 +9,7 @@
     <UserControl.Resources>
         <!-- 角色卡片：头像 + 名字 + 状态 + 按钮 -->
         <DataTemplate x:Key="VoiceCardTemplate">
-            <Border Style="{StaticResource Card.Item}" Padding="12" Margin="0,0,10,10" Width="420">
+            <Border Style="{StaticResource Card.Item}" Padding="12" Margin="0,0,12,12" Width="470">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
@@ -53,26 +53,33 @@
                         <TextBlock Text="{Binding DirectoryText}" Style="{StaticResource Text.Muted}" FontSize="11"
                                    Margin="0,3,0,0" TextWrapping="Wrap" />
 
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button Style="{StaticResource Button.Primary}" Content="安装" Padding="10,5" FontSize="12"
+                        <!-- 按钮行用 WrapPanel：宽度不够时自动换行，绝不溢出卡片 -->
+                        <WrapPanel Margin="0,8,0,0">
+                            <Button Style="{StaticResource Button.Primary}" Content="安装" Padding="12,5" FontSize="12"
+                                    Margin="0,0,6,6"
                                     Command="{Binding DataContext.InstallCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}" ToolTip="选择语音 Mod（.vpk 优先）并备份后安装" />
-                            <Button Style="{StaticResource Button.Ghost}" Content="备份" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                            <Button Style="{StaticResource Button.Ghost}" Content="备份" Padding="12,5" FontSize="12"
+                                    Margin="0,0,6,6"
                                     Command="{Binding DataContext.BackupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}" ToolTip="只备份当前语音，不修改任何文件" />
-                            <Button Style="{StaticResource Button.Ghost}" Content="恢复" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                            <Button Style="{StaticResource Button.Ghost}" Content="恢复" Padding="12,5" FontSize="12"
+                                    Margin="0,0,6,6"
                                     Command="{Binding DataContext.RestoreLatestCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}" ToolTip="恢复该角色最近一次原版备份" />
-                            <Button Style="{StaticResource Button.Ghost}" Content="打开目录" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                            <Button Style="{StaticResource Button.Ghost}" Content="目录" Padding="12,5" FontSize="12"
+                                    Margin="0,0,6,6"
                                     Command="{Binding DataContext.OpenVoiceFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}" />
-                            <Button Style="{StaticResource Button.Ghost}" Content="打开 DLC" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                                    CommandParameter="{Binding}" ToolTip="打开该角色的语音目录" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="DLC" Padding="12,5" FontSize="12"
+                                    Margin="0,0,6,6"
                                     Command="{Binding DataContext.OpenDlcFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}" />
-                            <Button Style="{StaticResource Button.Danger}" Content="删除 Mod" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                                    CommandParameter="{Binding}" ToolTip="打开 DLC 里的语音目录" />
+                            <Button Style="{StaticResource Button.Danger}" Content="删除 Mod" Padding="12,5" FontSize="12"
+                                    Margin="0,0,0,6"
                                     Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}" ToolTip="备份当前状态后恢复安装前的原版备份" />
-                        </StackPanel>
+                        </WrapPanel>
                     </StackPanel>
                 </Grid>
             </Border>
