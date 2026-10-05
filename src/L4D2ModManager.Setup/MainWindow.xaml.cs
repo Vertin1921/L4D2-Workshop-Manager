@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Win32;
 
 namespace L4D2ModManager.Setup;
@@ -36,7 +36,11 @@ public partial class MainWindow : Window
         UninstallPanel.Visibility = Visibility.Visible;
         UninstallShortcutButton.Visibility = Visibility.Collapsed;
         ActionButton.Content = "开始卸载";
+        ActionButton.IsEnabled = true;
         CancelButton.Content = "关闭";
+        CancelButton.IsEnabled = true;
+        _busy = false;
+        _finished = false;
 
         if (string.IsNullOrWhiteSpace(location))
         {
@@ -256,14 +260,38 @@ public partial class MainWindow : Window
 
     private async Task RunUninstallAsync()
     {
+        // 目录解析：命令行 → 注册表里的安装记录 → 界面上显示的路径（三者都试，避免"空目录导致无反应"）
+        var target = _options.InstallDirectory;
+
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            Installer.TryGetInstalledInfo(out var installed, out _);
+            target = installed;
+        }
+
+        if (string.IsNullOrWhiteSpace(target)) target = PathBox.Text?.Trim();
+
+        if (string.IsNullOrWhiteSpace(target) || !Directory.Exists(target))
+        {
+            MessageBox.Show(this,
+                "没有找到已安装的目录，无法卸载。\r\n\r\n" +
+                "可以先把程序目录填到上面的路径框，或到「设置 → 应用和功能」里卸载。",
+                "卸载 " + Installer.AppShortName, MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         var confirm = MessageBox.Show(this,
-            "确定要卸载 " + Installer.AppShortName + " 吗？",
+            $"确定要卸载 {Installer.AppShortName} 吗？\r\n\r\n" +
+            $"安装目录：{target}\r\n\r\n" +
+            "只删除程序自己的文件，同目录里的 Mod / 地图等一律保留。",
             "确认卸载", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.Yes) return;
 
         _busy = true;
         ActionButton.IsEnabled = false;
         CancelButton.IsEnabled = false;
+        StatusText.Text = "准备卸载…";
+        Progress.Value = 0;
 
         var progress = new Progress<InstallProgress>(p =>
         {
@@ -273,13 +301,18 @@ public partial class MainWindow : Window
 
         try
         {
-            await Installer.UninstallAsync(_options.InstallDirectory, RemoveDataCheck.IsChecked == true, progress);
-            MessageBox.Show(this, "卸载完成。", "卸载", MessageBoxButton.OK, MessageBoxImage.Information);
+            L4D2ModManager.Core.Services.Log.Info($"开始卸载：{target}（删除用户数据：{RemoveDataCheck.IsChecked == true}）");
+            var outcome = await Installer.UninstallAsync(target, RemoveDataCheck.IsChecked == true, progress);
+            L4D2ModManager.Core.Services.Log.Info("卸载完成：" + outcome.Summary);
+
+            MessageBox.Show(this, "卸载完成。\r\n\r\n" + outcome.Summary, "卸载 " + Installer.AppShortName,
+                MessageBoxButton.OK, MessageBoxImage.Information);
             Application.Current.Shutdown();
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "卸载失败：\n" + ex.Message, "卸载失败", MessageBoxButton.OK, MessageBoxImage.Error);
+            L4D2ModManager.Core.Services.Log.Error("卸载失败", ex);
+            MessageBox.Show(this, "卸载失败：\r\n" + ex.Message, "卸载失败", MessageBoxButton.OK, MessageBoxImage.Error);
             ActionButton.IsEnabled = true;
             CancelButton.IsEnabled = true;
         }
