@@ -45,6 +45,9 @@ public static class AppDeployment
     /// <summary>独立卸载程序（主程序的副本，靠文件名识别卸载意图）。</summary>
     public const string UninstallerName = "Uninstall.exe";
 
+    /// <summary>安装清单：记录本程序装进安装目录的文件。卸载只删清单里的文件，绝不动用户的 mod。</summary>
+    public const string ManifestFileName = "installed-files.txt";
+
     /// <summary>数据目录名（%AppData% 下）。</summary>
     public const string UserDataFolderName = "L4D2ModManager";
 
@@ -335,7 +338,7 @@ public static class AppDeployment
         progress?.Report(new UninstallProgress(20, "正在删除程序文件…"));
 
         var outcome = await Task.Run(
-            () => DeleteDirectoryFiles(target, TimeSpan.FromSeconds(10), removeUserData, cancellationToken),
+            () => DeleteInstalledFiles(target, TimeSpan.FromSeconds(10), removeUserData, cancellationToken),
             cancellationToken).ConfigureAwait(false);
 
         progress?.Report(new UninstallProgress(100, outcome.Summary));
@@ -347,6 +350,196 @@ public static class AppDeployment
     /// 尽力删除目录内文件：先重试若干秒（等待自身进程退出、文件解锁），
     /// 仍被占用（例如正在运行的 exe / 已映射的运行时 DLL）时注册为"重启后删除"。
     /// </summary>
+    /// <summary>写入安装清单（相对安装目录的路径）。</summary>
+    public static void WriteInstallManifest(string installDirectory, IEnumerable<string> relativeFiles)
+    {
+        try
+        {
+            Directory.CreateDirectory(installDirectory);
+
+            var lines = relativeFiles
+                .Where(f => !string.IsNullOrWhiteSpace(f))
+                .Select(f => f.Replace('\\', '/').TrimStart('/'))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // 卸载程序本身与清单也要记录（否则会残留）
+            if (!lines.Contains(UninstallerName, StringComparer.OrdinalIgnoreCase)) lines.Add(UninstallerName);
+            lines.Add(ManifestFileName);
+
+            File.WriteAllLines(Path.Combine(installDirectory, ManifestFileName), lines);
+            Log.Info($"已写入安装清单：{lines.Count} 个文件");
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"写入安装清单失败：{ex.Message}");
+        }
+    }
+
+    /// <summary>读取安装清单；没有清单时返回空列表（旧版本安装）。</summary>
+    public static IReadOnlyList<string> ReadInstallManifest(string installDirectory)
+    {
+        try
+        {
+            var path = Path.Combine(installDirectory, ManifestFileName);
+            if (!File.Exists(path)) return Array.Empty<string>();
+
+            return File.ReadAllLines(path)
+                .Select(l => l.Trim())
+                .Where(l => l.Length > 0 && !l.StartsWith('#'))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"读取安装清单失败：{ex.Message}");
+            return Array.Empty<string>();
+        }
+    }
+
+    /// <summary>
+    /// 卸载：**只删除安装清单里记录的程序文件**，用户放进同一目录的 mod / 其它文件一律保留。
+    /// 没有清单（老版本安装）时保守处理：只删本程序明显的程序文件（L4D2ModManager*/Uninstall.exe 等）。
+    /// </summary>
+    public static UninstallOutcome DeleteInstalledFiles(
+        string directory,
+        TimeSpan retryWindow,
+        bool removeUserData = false,
+        CancellationToken cancellationToken = default)
+    {
+        var deadline = DateTime.UtcNow + retryWindow;
+        var deferred = new List<string>();
+        int deleted = 0;
+
+        var root = Path.GetFullPath(directory);
+        var manifest = ReadInstallManifest(root);
+        var useManifest = manifest.Count > 0;
+
+        if (!useManifest)
+        {
+            Log.Warn($"安装目录里没有 {ManifestFileName}，将只删除本程序明显的程序文件，其余文件保持不动。");
+        }
+
+        var candidates = useManifest
+            ? manifest.Select(rel => Path.GetFullPath(Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar))))
+                      .Where(p => p.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                      .Where(File.Exists)
+                      .ToList()
+            : Directory.EnumerateFiles(root, "*", SearchOption.TopDirectoryOnly)
+                       .Where(LooksLikeProgramFile)
+                       .ToList();
+
+        foreach (var file in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (TryDeleteWithRetry(file, deadline))
+            {
+                deleted++;
+            }
+            else
+            {
+                deferred.Add(file);
+                RegisterDeleteOnReboot(file);
+            }
+        }
+
+        // 清理因删除而变空的子目录（只删空目录，绝不递归删目录）
+        if (useManifest)
+        {
+            RemoveEmptyDirectories(root, deleted);
+        }
+
+        if (removeUserData)
+        {
+            TryDeleteUserData();
+        }
+
+        return new UninstallOutcome(deleted, deferred.Count);
+    }
+
+    /// <summary>本程序明显的程序文件（无清单时的保守回退）。</summary>
+    private static bool LooksLikeProgramFile(string path)
+    {
+        var name = Path.GetFileName(path);
+
+        return name.Equals(UninstallerName, StringComparison.OrdinalIgnoreCase) ||
+               name.Equals(ManifestFileName, StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("L4D2ModManager", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("WebView2", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("Microsoft.Web.WebView2", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("Microsoft.Windows.SDK.NET.dll", StringComparison.OrdinalIgnoreCase) ||
+               name.Equals("WinRT.Runtime.dll", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryDeleteWithRetry(string file, DateTime deadline)
+    {
+        while (true)
+        {
+            try
+            {
+                if (!File.Exists(file)) return true;
+                File.SetAttributes(file, FileAttributes.Normal);
+                File.Delete(file);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (DateTime.UtcNow >= deadline)
+                {
+                    Log.Warn($"删除失败（将安排重启后删除）：{file} -> {ex.Message}");
+                    return false;
+                }
+
+                Thread.Sleep(150);
+            }
+        }
+    }
+
+    /// <summary>删除空的子目录（自底向上），非空目录一律保留。</summary>
+    private static void RemoveEmptyDirectories(string root, int deletedCount)
+    {
+        if (deletedCount == 0) return;
+
+        try
+        {
+            foreach (var directory in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
+                         .OrderByDescending(d => d.Length))
+            {
+                try
+                {
+                    if (!Directory.EnumerateFileSystemEntries(directory).Any())
+                    {
+                        Directory.Delete(directory);
+                    }
+                }
+                catch
+                {
+                    // 非空或占用：保留
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"清理空目录失败：{ex.Message}");
+        }
+    }
+
+    private static void TryDeleteUserData()
+    {
+        try
+        {
+            if (Directory.Exists(UserDataDirectory))
+            {
+                Directory.Delete(UserDataDirectory, recursive: true);
+                Log.Info($"已删除用户数据目录：{UserDataDirectory}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"删除用户数据失败：{ex.Message}");
+        }
+    }
+
     public static UninstallOutcome DeleteDirectoryFiles(
         string directory,
         TimeSpan retryWindow,

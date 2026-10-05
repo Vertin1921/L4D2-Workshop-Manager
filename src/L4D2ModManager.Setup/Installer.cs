@@ -128,6 +128,37 @@ public static class Installer
         return info != null;
     }
 
+    /// <summary>从安装载荷（外置 zip 或内嵌资源）生成安装清单。</summary>
+    private static void WriteInstallManifest(string target, string? payloadPath)
+    {
+        try
+        {
+            var entries = new List<string>();
+
+            if (payloadPath != null)
+            {
+                using var zip = System.IO.Compression.ZipFile.OpenRead(payloadPath);
+                entries.AddRange(zip.Entries
+                    .Where(e => !string.IsNullOrEmpty(e.Name))
+                    .Select(e => e.FullName));
+            }
+            else
+            {
+                using var stream = OpenPayload();
+                using var zip = new System.IO.Compression.ZipArchive(stream, System.IO.Compression.ZipArchiveMode.Read);
+                entries.AddRange(zip.Entries
+                    .Where(e => !string.IsNullOrEmpty(e.Name))
+                    .Select(e => e.FullName));
+            }
+
+            AppDeployment.WriteInstallManifest(target, entries);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"生成安装清单失败（卸载时会退化为只删程序文件）：{ex.Message}");
+        }
+    }
+
     /// <summary>执行安装。</summary>
     public static async Task InstallAsync(InstallOptions options, IProgress<InstallProgress>? progress = null,
         CancellationToken cancellationToken = default)
@@ -212,6 +243,9 @@ public static class Installer
         }
 
         progress?.Report(new InstallProgress { Percent = 88, Message = "创建快捷方式…" });
+        // 记录安装清单（卸载时只删这些文件，用户的 mod 一律保留）
+        WriteInstallManifest(target, payloadPath);
+
         AppDeployment.CreateUninstaller(target);
         AppDeployment.CreateShortcuts(target, options.StartMenuShortcut, options.DesktopShortcut);
 

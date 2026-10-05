@@ -138,6 +138,7 @@ internal static class Program
         Tests.Add(("覆盖更新：识别已装目录 + 自动关闭运行中的程序", TestUpdateFlow));
         Tests.Add(("按 Steam 标签分类（含未知）", TestClassificationByTags));
         Tests.Add(("语音管理器：代号路径 / ZIP 备份 / 安装 / 恢复", TestVoiceReplace));
+        Tests.Add(("卸载安全：只删程序文件，保留同目录的 mod", TestUninstallKeepsUserFiles));
         Tests.Add(("真实安装载荷解压并运行（可选）", TestRealInstallerPayload));
         Tests.Add(("创意工坊链接与 ID 解析", TestWorkshopParsing));
         Tests.Add(("Steam 路径探测（不抛异常）", TestSteamDetection));
@@ -1262,6 +1263,49 @@ internal static class Program
         Check.True(AvatarDownloader.DetectImageExtension(
                 System.Text.Encoding.ASCII.GetBytes("<html>404 Not Found</html>")) == null,
             "HTML 内容不应被当成图片");
+    }
+
+    /// <summary>卸载只能删程序自己的文件：清单里的删掉，同目录里用户的 mod / 其它文件必须原封不动。</summary>
+    private static async Task TestUninstallKeepsUserFiles()
+    {
+        await Task.Yield();
+
+        var root = NewDirectory("uninstall-safe");
+        Directory.CreateDirectory(Path.Combine(root, "runtimes", "win-x64", "native"));
+
+        File.WriteAllText(Path.Combine(root, "L4D2ModManager.exe"), "app");
+        File.WriteAllText(Path.Combine(root, "L4D2ModManager.Core.dll"), "core");
+        File.WriteAllText(Path.Combine(root, "runtimes", "win-x64", "native", "WebView2Loader.dll"), "native");
+        File.WriteAllText(Path.Combine(root, "user-mod.vpk"), "MOD");
+        File.WriteAllText(Path.Combine(root, "我的地图.vpk"), "MAP");
+        File.WriteAllText(Path.Combine(root, "notes.txt"), "KEEP");
+
+        AppDeployment.WriteInstallManifest(root, new[]
+        {
+            "L4D2ModManager.exe",
+            "L4D2ModManager.Core.dll",
+            "runtimes/win-x64/native/WebView2Loader.dll",
+        });
+
+        var outcome = AppDeployment.DeleteInstalledFiles(root, TimeSpan.FromSeconds(3));
+
+        Check.True(outcome.DeletedFiles >= 3, "清单里的程序文件应被删除（实际 " + outcome.DeletedFiles + "）");
+        Check.False(File.Exists(Path.Combine(root, "L4D2ModManager.exe")), "主程序应被删除");
+        Check.True(File.Exists(Path.Combine(root, "user-mod.vpk")), "同目录的用户 mod 必须保留");
+        Check.True(File.Exists(Path.Combine(root, "我的地图.vpk")), "中文名 mod 必须保留");
+        Check.True(File.Exists(Path.Combine(root, "notes.txt")), "其它文件必须保留");
+
+        // 旧版本安装没有清单：保守处理，只删本程序明显的程序文件
+        var legacy = NewDirectory("uninstall-legacy");
+        File.WriteAllText(Path.Combine(legacy, "L4D2ModManager.exe"), "app");
+        File.WriteAllText(Path.Combine(legacy, "Uninstall.exe"), "uninstaller");
+        File.WriteAllText(Path.Combine(legacy, "some-mod.vpk"), "MOD");
+        File.WriteAllText(Path.Combine(legacy, "readme.txt"), "KEEP");
+
+        var legacyOutcome = AppDeployment.DeleteInstalledFiles(legacy, TimeSpan.FromSeconds(3));
+        Check.True(legacyOutcome.DeletedFiles >= 2, "无清单时应删掉程序文件（实际 " + legacyOutcome.DeletedFiles + "）");
+        Check.True(File.Exists(Path.Combine(legacy, "some-mod.vpk")), "无清单时也不能删 mod");
+        Check.True(File.Exists(Path.Combine(legacy, "readme.txt")), "无清单时也不能删其它文件");
     }
 
     private static async Task TestWorkshopParsing()
