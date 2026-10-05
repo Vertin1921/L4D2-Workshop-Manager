@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
@@ -192,6 +192,26 @@ public static class AppDeployment
         return new CloseProcessOutcome(closed, remaining);
     }
 
+    /// <summary>
+    /// 关闭本程序的所有运行实例：既包括正常启动的 L4D2ModManager，
+    /// 也包括"被当作卸载器启动、结果跑起了管理器"的 Uninstall.exe（常见于旧版卸载程序）。
+    /// 当前进程自身永远不会被关闭。
+    /// </summary>
+    public static CloseProcessOutcome CloseAppInstances(int gracePeriodMs = 4000)
+    {
+        int closed = 0;
+        int remaining = 0;
+
+        foreach (var name in new[] { Path.GetFileNameWithoutExtension(ExecutableName), "Uninstall" })
+        {
+            // 当前进程名相同（自己就是 Uninstall.exe）时，CloseRunningInstances 会跳过自身
+            var result = CloseRunningInstances(name, gracePeriodMs);
+            closed += result.Closed;
+            remaining += result.Remaining;
+        }
+
+        return new CloseProcessOutcome(closed, remaining);
+    }
     /// <summary>安装目录里的卸载程序路径（不存在时回退为主程序）。</summary>
     public static string ResolveUninstaller(string installDirectory)
     {
@@ -349,7 +369,7 @@ public static class AppDeployment
 
         // 卸载前先关掉正在运行的主程序：否则程序自身的 exe 与运行库被占用，
         // 只能登记为"重启后清理"，安装目录会残留大量文件。
-        var closeResult = CloseRunningInstances();
+        var closeResult = CloseAppInstances();
         if (closeResult.Closed > 0)
         {
             Log.Info($"卸载前已自动关闭 {closeResult.Closed} 个正在运行的程序实例");
