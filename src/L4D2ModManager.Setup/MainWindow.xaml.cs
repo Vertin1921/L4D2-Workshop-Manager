@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using Microsoft.Win32;
 
 namespace L4D2ModManager.Setup;
@@ -25,8 +25,32 @@ public partial class MainWindow : Window
     }
 
     /// <summary>短暂置顶 + 激活，保证安装程序出现在用户眼前。</summary>
-    private void BringToFrontOnce()
+    /// <summary>切换到卸载界面（安装程序自带卸载，不需要额外文件）。</summary>
+    private void EnterUninstallMode(string? location)
     {
+        _uninstallMode = true;
+
+        HeaderText.Text = "卸载 " + Installer.AppShortName;
+        SubHeaderText.Text = "移除已安装的程序文件、快捷方式与卸载信息（不会删除你的 Mod 文件）";
+        InstallPanel.Visibility = Visibility.Collapsed;
+        UninstallPanel.Visibility = Visibility.Visible;
+        UninstallShortcutButton.Visibility = Visibility.Collapsed;
+        ActionButton.Content = "开始卸载";
+        CancelButton.Content = "关闭";
+
+        if (string.IsNullOrWhiteSpace(location))
+        {
+            Installer.TryGetInstalledInfo(out location, out _);
+        }
+
+        UninstallLocationText.Text = string.IsNullOrWhiteSpace(location)
+            ? "未检测到安装目录，将尝试从注册表卸载信息中查找。"
+            : $"安装目录：{location}";
+    }
+
+    private void SwitchToUninstall_Click(object sender, RoutedEventArgs e) => EnterUninstallMode(null);
+
+    private void BringToFrontOnce()    {
         try
         {
             if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
@@ -49,20 +73,7 @@ public partial class MainWindow : Window
 
         if (_uninstallMode)
         {
-            HeaderText.Text = "卸载 " + Installer.AppShortName;
-            SubHeaderText.Text = "移除已安装的程序文件、快捷方式与卸载信息";
-            InstallPanel.Visibility = Visibility.Collapsed;
-            UninstallPanel.Visibility = Visibility.Visible;
-            ActionButton.Content = "开始卸载";
-            CancelButton.Content = "关闭";
-
-            var location = options.InstallDirectory;
-            if (string.IsNullOrWhiteSpace(location))
-                Installer.TryGetInstalledInfo(out location, out _);
-
-            UninstallLocationText.Text = string.IsNullOrWhiteSpace(location)
-                ? "未检测到安装目录，将尝试从注册表卸载信息中查找。"
-                : $"安装目录：{location}";
+            EnterUninstallMode(options.InstallDirectory);
         }
         else
         {
@@ -77,6 +88,7 @@ public partial class MainWindow : Window
                 _updateMode = true;
                 PathBox.Text = installedPath;
                 HeaderText.Text = "更新 " + Installer.AppShortName;
+                UninstallShortcutButton.Visibility = Visibility.Visible;
                 SubHeaderText.Text = $"检测到已安装版本 {installedVersion}，将直接覆盖更新到 " +
                                      L4D2ModManager.Core.Services.Deployment.AppDeployment.Version;
             }
