@@ -306,7 +306,7 @@ public sealed class VoiceManager
     public VoiceManager(string? dataRoot = null)
     {
         _root = dataRoot ?? AppPaths.Root;
-        BackupsDirectory = Path.Combine(_root, "Backups");
+        BackupsDirectory = ResolveBackupsDirectory(_root);
         DataDirectory = Path.Combine(_root, "Data");
         LogsDirectory = Path.Combine(_root, "Logs");
         AvatarDirectory = Path.Combine(_root, "Avatars");
@@ -314,7 +314,48 @@ public sealed class VoiceManager
     }
 
     public string Root => _root;
-    public string BackupsDirectory { get; }
+    public string BackupsDirectory { get; private set; }
+
+    /// <summary>语音备份目录：可在界面「工具与说明」里自定义；未设置时用数据目录下的 Backups。</summary>
+    private static string ResolveBackupsDirectory(string root)
+    {
+        try
+        {
+            var settings = Path.Combine(root, "voice-backup.json");
+            if (File.Exists(settings))
+            {
+                var saved = System.Text.Json.JsonSerializer.Deserialize<string>(File.ReadAllText(settings));
+                if (!string.IsNullOrWhiteSpace(saved) && Directory.Exists(saved)) return saved!;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("读取语音备份目录设置失败：" + ex.Message);
+        }
+
+        return Path.Combine(root, "Backups");
+    }
+
+    /// <summary>设置语音备份目录（界面上选择后立即生效，并记到数据目录 voice-backup.json）。</summary>
+    public void SetBackupsDirectory(string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory)) return;
+
+        Directory.CreateDirectory(directory);
+        BackupsDirectory = directory;
+
+        try
+        {
+            File.WriteAllText(Path.Combine(_root, "voice-backup.json"), System.Text.Json.JsonSerializer.Serialize(directory));
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("保存语音备份目录设置失败：" + ex.Message);
+        }
+
+        Log.Info($"语音备份目录已设为：{directory}");
+    }
+
     public string DataDirectory { get; }
     public string LogsDirectory { get; }
     public string AvatarDirectory { get; }

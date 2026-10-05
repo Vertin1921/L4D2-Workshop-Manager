@@ -202,6 +202,7 @@ public sealed class VoiceViewModel : ObservableObject
         RefreshCommand = new RelayCommand(_ => Refresh());
         OpenGameFolderCommand = new RelayCommand(_ => OpenFolder(_gameRoot));
         OpenBackupsFolderCommand = new RelayCommand(_ => OpenFolder(_manager.BackupsDirectory));
+        ChooseBackupFolderCommand = new RelayCommand(_ => ChooseBackupFolder());
         OpenDataFolderCommand = new RelayCommand(_ => OpenFolder(_manager.DataDirectory));
         OpenLogsFolderCommand = new RelayCommand(_ => OpenFolder(_manager.LogsDirectory));
         OpenAvatarsFolderCommand = new RelayCommand(_ => OpenAvatarsFolder());
@@ -263,6 +264,31 @@ public sealed class VoiceViewModel : ObservableObject
     public RelayCommand OpenGameFolderCommand { get; }
 
     public RelayCommand OpenBackupsFolderCommand { get; }
+
+    /// <summary>更改语音备份位置（「工具与说明」那一行的按钮）。</summary>
+    public RelayCommand ChooseBackupFolderCommand { get; }
+
+    /// <summary>当前备份目录（给按钮做提示文字）。</summary>
+    public string BackupDirectoryText => _manager.BackupsDirectory;
+
+    private void ChooseBackupFolder()
+    {
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "选择语音备份文件夹",
+            Multiselect = false,
+        };
+
+        if (Directory.Exists(_manager.BackupsDirectory)) dialog.InitialDirectory = _manager.BackupsDirectory;
+
+        if (dialog.ShowDialog() != true) return;
+
+        _manager.SetBackupsDirectory(dialog.FolderName);
+        Raise(nameof(BackupDirectoryText));
+        Backups.Clear();
+        foreach (var backup in _manager.ListBackups()) Backups.Add(backup);
+        StatusText = $"备份位置已设为：{_manager.BackupsDirectory}";
+    }
 
     public RelayCommand OpenDataFolderCommand { get; }
 
