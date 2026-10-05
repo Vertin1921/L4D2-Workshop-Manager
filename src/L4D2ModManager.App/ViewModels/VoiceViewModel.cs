@@ -38,11 +38,14 @@ public sealed class VoiceCharacterCard : ObservableObject
         private set
         {
             if (!Set(ref _avatarPath, value)) return;
-            Raise(nameof(HasAvatar), nameof(AvatarImage));
+            Raise(nameof(HasAvatar), nameof(AvatarImage), nameof(AvatarSourceText));
         }
     }
 
     public bool HasAvatar => !string.IsNullOrWhiteSpace(AvatarPath) && File.Exists(AvatarPath);
+
+    /// <summary>头像来源说明：本地文件（下载或手动设置后一直离线使用）还是首字母占位。</summary>
+    public string AvatarSourceText => HasAvatar ? "本地图片" : "首字母占位";
 
     /// <summary>已解码头像缓存（键含文件修改时间，图片换了会自动失效）。</summary>
     private static readonly Dictionary<string, ImageSource> AvatarCache = new(StringComparer.OrdinalIgnoreCase);
@@ -160,7 +163,7 @@ public sealed class VoiceViewModel : ObservableObject
     private string _logText = string.Empty;
     private VoiceBackupInfo? _selectedBackup;
     private bool _isBusy;
-    private string _avatarHintText = "人物头像：使用角色首字母占位，可点「下载人物头像」自动获取，或把自己的图片放进 Avatars 目录";
+    private string _avatarHintText = "人物头像：点「下载人物头像」会一次性下载到本机 Avatars 目录，之后一直从本地加载（不再联网）；也可用每个角色卡片上的「头像」按钮选本地图片";
     private bool _avatarAutoTried;
 
     public VoiceViewModel(AppServices services)

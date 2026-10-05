@@ -45,6 +45,9 @@
                                 <TextBlock Text="{Binding Codename}" FontSize="10" FontFamily="{StaticResource Font.Mono}"
                                            Foreground="{StaticResource Brush.TextDim}" />
                             </Border>
+                            <TextBlock Text="{Binding AvatarSourceText}" Style="{StaticResource Text.Muted}" FontSize="10.5"
+                                       Margin="8,0,0,0" VerticalAlignment="Center"
+                                       ToolTip="头像保存在数据目录的 Avatars 文件夹里，本地加载，不联网" />
                         </StackPanel>
 
                         <TextBlock Text="{Binding StatusText}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
