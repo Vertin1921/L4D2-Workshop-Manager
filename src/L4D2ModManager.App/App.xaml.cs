@@ -152,17 +152,19 @@ public partial class App : Application
     private static bool TryRunHeadless(string[] args, out int exitCode)
     {
         exitCode = 0;
+
+        // 通过安装目录里的 Uninstall.exe 启动时等同于 --uninstall（即使一个参数都没有）。
+        // 注意：这段必须在 args.Length == 0 的早退之前，否则双击卸载程序只会打开主程序。
+        if (L4D2ModManager.Core.Services.Deployment.AppDeployment.IsUninstallerProcess())
+        {
+            args = new[] { "--uninstall" }
+                .Concat(args.Where(x => x is "--silent" or "--removedata"))
+                .ToArray();
+        }
+
         if (args.Length == 0) return false;
 
         var command = args[0].Trim().ToLowerInvariant();
-        // 通过安装目录里的 Uninstall.exe 启动时，等同执行 --uninstall
-        if (L4D2ModManager.Core.Services.Deployment.AppDeployment.IsUninstallerProcess() &&
-            command != "--uninstall")
-        {
-            var extra = args.Where(x => x is "--silent" or "--removedata").ToArray();
-            args = new[] { "--uninstall" }.Concat(extra).ToArray();
-            command = "--uninstall";
-        }
 
         if (command is not ("--version" or "--help" or "-h" or "--diagnose" or "--scan" or "--uninstall" or "--selftest-ui"))
             return false;
