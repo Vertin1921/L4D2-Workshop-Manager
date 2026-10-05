@@ -492,7 +492,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public string VersionText => $"{AppInfo.ShortName} v{AppInfo.Version}";
+    public string VersionText => $"{AppInfo.ShortName} v{AppInfo.Version} · 本程序由 DeepSeek Harness 大肥鱼生成";
 
     public string ModSummary => Mods.SummaryText;
 
