@@ -23,6 +23,9 @@ public sealed record UninstallOutcome(int DeletedFiles, int DeferredFiles)
         : $"已删除 {DeletedFiles} 个文件；另有 {DeferredFiles} 个文件正被占用，将在下次重启后自动清理。";
 }
 
+/// <summary>关闭运行中实例的结果。</summary>
+public sealed record CloseProcessOutcome(int Closed, int Remaining);
+
 /// <summary>
 /// 安装/卸载相关的公共逻辑（安装程序与主程序共用）。
 ///
@@ -126,6 +129,60 @@ public static class AppDeployment
         {
             Log.Warn($"删除卸载注册表失败: {ex.Message}");
         }
+    }
+
+    /// <summary>关闭正在运行的程序实例（覆盖更新前必须做，否则文件被占用无法替换）。</summary>
+    /// <param name="processName">进程名（不含 .exe），默认就是主程序。</param>
+    /// <param name="gracePeriodMs">先礼貌请求关闭的等待时间，超时后强制结束。</param>
+    public static CloseProcessOutcome CloseRunningInstances(string? processName = null, int gracePeriodMs = 4000)
+    {
+        var name = string.IsNullOrWhiteSpace(processName)
+            ? Path.GetFileNameWithoutExtension(ExecutableName)
+            : processName!;
+
+        int closed = 0;
+
+        foreach (var process in Process.GetProcessesByName(name))
+        {
+            try
+            {
+                if (process.Id == Environment.ProcessId) continue;   // 不关自己
+
+                // 先发关闭消息（程序能正常保存配置），超时再强杀
+                if (process.CloseMainWindow() && process.WaitForExit(gracePeriodMs))
+                {
+                    closed++;
+                    continue;
+                }
+
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(3000);
+                closed++;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"关闭进程 {name}({process.Id}) 失败: {ex.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        int remaining;
+        try
+        {
+            remaining = Process.GetProcessesByName(name).Length;
+        }
+        catch
+        {
+            remaining = 0;
+        }
+
+        if (closed > 0) Log.Info($"安装/更新前已关闭 {closed} 个正在运行的 {name} 实例");
+        if (remaining > 0) Log.Warn($"仍有 {remaining} 个 {name} 实例在运行（可能以管理员身份启动）");
+
+        return new CloseProcessOutcome(closed, remaining);
     }
 
     /// <summary>创建开始菜单与桌面快捷方式。</summary>

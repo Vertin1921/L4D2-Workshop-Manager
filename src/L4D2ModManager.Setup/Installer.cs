@@ -141,6 +141,25 @@ public static class Installer
             : options.TargetDirectory.Trim();
         target = Path.GetFullPath(target);
 
+        // 覆盖更新：先关掉正在运行的主程序，否则 exe/dll 被占用会替换失败
+        progress?.Report(new InstallProgress { Percent = 1, Message = "检查正在运行的程序…" });
+        var closeResult = AppDeployment.CloseRunningInstances();
+        if (closeResult.Closed > 0)
+        {
+            progress?.Report(new InstallProgress
+            {
+                Percent = 1,
+                Message = $"已自动关闭 {closeResult.Closed} 个正在运行的程序实例…",
+            });
+        }
+
+        if (closeResult.Remaining > 0)
+        {
+            throw new InvalidOperationException(
+                $"检测到 {closeResult.Remaining} 个 L4D2 Mod Manager 仍在运行（可能是以管理员身份启动的），无法覆盖更新。\r\n\r\n" +
+                "请先手动退出程序（或在任务管理器中结束 L4D2ModManager.exe）后重试。");
+        }
+
         progress?.Report(new InstallProgress { Percent = 2, Message = "准备安装目录…" });
         Directory.CreateDirectory(target);
 

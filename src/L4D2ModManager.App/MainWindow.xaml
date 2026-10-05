@@ -50,26 +50,23 @@
                 <RowDefinition Height="30" />
             </Grid.RowDefinitions>
 
-            <!-- ================= 标题栏（macOS 风格：左侧交通灯 + 居中标题） ================= -->
+            <!-- ================= 标题栏（Windows 11 风格：左侧标题 + 右侧窗口按钮） ================= -->
             <Grid x:Name="TitleBar" Grid.Row="0" Height="40" Background="{StaticResource Brush.TitleBar}"
                   MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-                <!-- 交通灯按钮组（macOS 风格：鼠标进入按钮组时三个一起显示符号） -->
-                <StackPanel x:Name="TrafficLights" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            Margin="16,0,0,0" shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                            MouseEnter="TrafficLights_MouseEnter" MouseLeave="TrafficLights_MouseLeave">
-                    <Button Style="{StaticResource Button.TrafficLight}" Background="#FF5F57"
-                            Content="✕" Click="Close_Click" ToolTip="关闭" />
-                    <Button Style="{StaticResource Button.TrafficLight}" Background="#FEBC2E"
-                            Content="—" Click="Minimize_Click" ToolTip="最小化" />
-                    <Button Style="{StaticResource Button.TrafficLight}" Background="#28C840"
-                            Content="⤢" Click="ToggleFullScreen_Click" ToolTip="窗口化 / 全屏（F11）" />
+                <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                    <Border Width="5" Height="18" CornerRadius="2.5" Background="{StaticResource Brush.Accent}" Margin="0,0,10,0" />
+                    <TextBlock Text="LEFT 4 DEAD 2" FontSize="13" FontWeight="Bold" Foreground="{StaticResource Brush.Text}"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="MOD MANAGER" FontSize="13" FontWeight="Normal" Margin="8,0,0,0"
+                               Foreground="{StaticResource Brush.AccentBright}" VerticalAlignment="Center" />
                 </StackPanel>
 
-                <!-- 居中标题 -->
-                <TextBlock x:Name="WindowTitleText" Text="Left 4 Dead 2 Mod Manager"
-                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                           FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Brush.TextMuted}"
-                           IsHitTestVisible="False" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Stretch"
+                            shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource Button.Caption}" Content="—" Click="Minimize_Click" ToolTip="最小化" />
+                    <Button Style="{StaticResource Button.Caption}" Content="▢" Click="Maximize_Click" ToolTip="最大化 / 还原（F11 全屏）" />
+                    <Button Style="{StaticResource Button.Caption}" Content="✕" Click="Close_Click" ToolTip="关闭" />
+                </StackPanel>
             </Grid>
 
             <!-- ================= 主体 ================= -->

@@ -10,6 +10,9 @@ public partial class MainWindow : Window
     private bool _finished;
     private bool _busy;
 
+    /// <summary>是否处于"覆盖更新"模式（检测到已安装）。</summary>
+    private bool _updateMode;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -39,7 +42,25 @@ public partial class MainWindow : Window
         }
         else
         {
-            PathBox.Text = options.InstallDirectory ?? Installer.DefaultTargetDirectory;
+            // 覆盖更新：优先用命令行指定目录 → 已安装目录（注册表）→ 默认目录
+            if (!string.IsNullOrWhiteSpace(options.InstallDirectory))
+            {
+                PathBox.Text = options.InstallDirectory;
+            }
+            else if (Installer.TryGetInstalledInfo(out var installedPath, out var installedVersion) &&
+                     !string.IsNullOrWhiteSpace(installedPath) && Directory.Exists(installedPath))
+            {
+                _updateMode = true;
+                PathBox.Text = installedPath;
+                HeaderText.Text = "更新 " + Installer.AppShortName;
+                SubHeaderText.Text = $"检测到已安装版本 {installedVersion}，将直接覆盖更新到 " +
+                                     L4D2ModManager.Core.Services.Deployment.AppDeployment.Version;
+            }
+            else
+            {
+                PathBox.Text = Installer.DefaultTargetDirectory;
+            }
+
             DesktopCheck.IsChecked = !options.NoDesktopShortcut;
             StartMenuCheck.IsChecked = !options.NoStartMenuShortcut;
             LaunchCheck.IsChecked = true;
@@ -53,6 +74,12 @@ public partial class MainWindow : Window
                 StatusText.Text = "警告：此安装包没有内置程序文件（payload.zip），无法安装。\n" +
                                   "请使用 build\\build-release.ps1 重新生成 Setup.exe。";
                 ActionButton.IsEnabled = false;
+            }
+            else if (_updateMode)
+            {
+                StatusText.Text = $"覆盖更新：{PathBox.Text}\n" +
+                                  "安装时会自动关闭正在运行的程序；你的 Mod、配置与数据库都会保留。";
+                ActionButton.Content = "更新";
             }
             else
             {

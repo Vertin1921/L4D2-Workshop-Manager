@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -237,7 +237,7 @@ public partial class MainWindow : Window
 
     private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 
-    private void Maximize_Click(object sender, RoutedEventArgs e) => ToggleMaximize();
+    private void Maximize_Click(object sender, RoutedEventArgs e) => ToggleFullScreen();
 
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
@@ -313,12 +313,7 @@ public partial class MainWindow : Window
 
     // ------------------------------------------------------------------ 窗口交互动画
 
-    /// <summary>鼠标进入交通灯按钮组：三个符号一起淡入 + 圆点轻微放大（与 macOS 一致）。</summary>
-    private void TrafficLights_MouseEnter(object sender, MouseEventArgs e) => TrafficLights.Tag = "Hover";
-
-    private void TrafficLights_MouseLeave(object sender, MouseEventArgs e) => TrafficLights.Tag = string.Empty;
-
-    /// <summary>窗口打开动画：整体轻微放大 + 淡入（macOS 窗口"弹出"观感）。</summary>
+    /// <summary>窗口打开动画：整体轻微放大 + 淡入。</summary>
     private void PlayWindowOpenAnimation()
     {
         try

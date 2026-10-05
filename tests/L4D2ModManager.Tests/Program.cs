@@ -126,6 +126,7 @@ internal static class Program
         Tests.Add(("仅凭工坊 ID 的下载入队（接口不可用时的降级）", TestDownloadByIdFallback));
         Tests.Add(("安装载荷定位（外置 payload.zip）", TestInstallPayloadLookup));
         Tests.Add(("启动游戏：命令行与 -insecure 参数", TestGameLauncher));
+        Tests.Add(("覆盖更新：识别已装目录 + 自动关闭运行中的程序", TestUpdateFlow));
         Tests.Add(("真实安装载荷解压并运行（可选）", TestRealInstallerPayload));
         Tests.Add(("创意工坊链接与 ID 解析", TestWorkshopParsing));
         Tests.Add(("Steam 路径探测（不抛异常）", TestSteamDetection));
@@ -997,6 +998,66 @@ internal static class Program
         var missing = GameLauncher.Build(empty, new GameLaunchOptions { DryRun = true });
         Check.False(missing.Success, "找不到游戏时不应报告成功");
         Check.True((missing.Error ?? string.Empty).Contains("Left 4 Dead 2"), "错误信息应说明没找到游戏：" + missing.Error);
+    }
+
+    /// <summary>
+    /// 覆盖更新流程：
+    ///   · 关闭不存在的进程不应报错；
+    ///   · 注册表安装信息能往返（安装器据此自动填入已装目录）——本机已有安装记录时跳过，避免破坏它；
+    ///   · 真正启动一个同名进程，验证能被自动关闭。
+    /// </summary>
+    private static async Task TestUpdateFlow()
+    {
+        // 1) 不存在的进程
+        var none = AppDeployment.CloseRunningInstances("l4d2mm-not-running-stub");
+        Check.Equal(0, none.Closed, "没有该进程时关闭数应为 0");
+        Check.Equal(0, none.Remaining, "没有该进程时残留数应为 0");
+
+        // 2) 注册表往返（保护本机已有记录）
+        if (AppDeployment.TryGetInstalledInfo() != null)
+        {
+            Console.WriteLine("        （本机已存在安装记录，跳过注册表往返测试以保护它）");
+        }
+        else
+        {
+            var installDirectory = NewDirectory("update-install");
+            AppDeployment.WriteUninstallRegistry(installDirectory, 1024 * 1024);
+
+            var info = AppDeployment.TryGetInstalledInfo();
+            Check.NotNull(info, "应能从注册表读回安装信息");
+            Check.Equal(installDirectory, info!.Location, "读回的安装目录应与写入一致");
+
+            AppDeployment.RemoveUninstallRegistry();
+            Check.True(AppDeployment.TryGetInstalledInfo() == null, "删除注册表后应读不到安装信息");
+        }
+
+        // 3) 真进程：复制一份 cmd.exe 改名为被测进程名
+        var stubDirectory = NewDirectory("update-stub");
+        var stubPath = Path.Combine(stubDirectory, "L4D2MMStub.exe");
+        File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), stubPath, overwrite: true);
+
+        var startInfo = new System.Diagnostics.ProcessStartInfo(stubPath, "/c ping -n 60 127.0.0.1 > nul")
+        {
+            CreateNoWindow = true,
+            UseShellExecute = false,
+        };
+
+        using var stub = System.Diagnostics.Process.Start(startInfo);
+        if (stub == null)
+        {
+            Console.WriteLine("        （无法启动测试进程，跳过自动关闭验证）");
+            return;
+        }
+
+        await Task.Delay(800).ConfigureAwait(false);
+
+        var closed = AppDeployment.CloseRunningInstances("L4D2MMStub", gracePeriodMs: 800);
+        Check.True(closed.Closed >= 1, $"应至少关闭 1 个实例（实际 {closed.Closed}）");
+        Check.Equal(0, closed.Remaining, "关闭后不应还有残留实例");
+
+        // 4) 默认进程名应来自主程序可执行文件名
+        var defaultName = AppDeployment.CloseRunningInstances();
+        Check.True(defaultName.Remaining >= 0, "默认进程名调用不应抛异常");
     }
 
     private static async Task TestWorkshopParsing()
