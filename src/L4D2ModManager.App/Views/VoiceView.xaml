@@ -192,7 +192,10 @@
                         <TextBlock Text="{Binding SelectedBackupDetail}" Style="{StaticResource Text.Muted}" Margin="0,8,0,8"
                                    TextWrapping="Wrap" />
 
-                        <ListBox Style="{StaticResource ListBox.Clean}" Height="180" ItemsSource="{Binding Backups}"
+                        <!-- 关掉自带滚动：否则鼠标停在备份列表上时滚轮被它吃掉，整页就"划不动"了 -->
+                        <ListBox Style="{StaticResource ListBox.Clean}" ItemsSource="{Binding Backups}"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  SelectedItem="{Binding SelectedBackup}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>

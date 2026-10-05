@@ -211,7 +211,7 @@ public partial class App : Application
 
         var command = args[0].Trim().ToLowerInvariant();
 
-        if (command is not ("--version" or "--help" or "-h" or "--diagnose" or "--scan" or "--uninstall" or "--selftest-ui"))
+        if (command is not ("--version" or "--help" or "-h" or "--diagnose" or "--scan" or "--uninstall" or "--selftest-ui" or "--remove-leftover"))
             return false;
 
         AttachConsole(-1);
@@ -417,6 +417,37 @@ public partial class App : Application
                     if (removeData) report.AppendLine($"已删除用户数据：{AppDeployment.UserDataDirectory}");
                     else report.AppendLine($"已保留用户数据：{AppDeployment.UserDataDirectory}");
 
+                    // 兜底：卸载程序自己可能既删不掉也改不了名（被杀软/权限拦住）。
+                    // 这时把"删掉自己"交给 %TEMP% 里的副本：主进程退出后由副本完成并显示"删除完毕"。
+                    var selfPath = Environment.ProcessPath;
+                    var runningFromTemp = args.Any(v => v.Equals("--from-temp", StringComparison.OrdinalIgnoreCase));
+
+                    if (!runningFromTemp && !string.IsNullOrWhiteSpace(selfPath) && File.Exists(selfPath))
+                    {
+                        try
+                        {
+                            var helper = Path.Combine(Path.GetTempPath(), "Uninstall-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".exe");
+                            File.Copy(selfPath, helper, overwrite: true);
+
+                            var helperArgs = $"--remove-leftover \"{selfPath}\" --deleted={outcome.DeletedFiles}";
+                            if (silent) helperArgs += " --silent";
+
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(helper)
+                            {
+                                UseShellExecute = true,
+                                Arguments = helperArgs,
+                            });
+
+                            report.AppendLine("已交给临时目录的副本来删除卸载程序自身（随后会显示删除完毕）。");
+                            exitCode = 0;
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            report.AppendLine("启动收尾副本失败：" + ex.Message);
+                        }
+                    }
+
                     if (!silent)
                     {
                         System.Windows.MessageBox.Show("卸载完成。\r\n\r\n" + outcome.Summary, AppDeployment.AppShortName,
@@ -432,6 +463,39 @@ public partial class App : Application
                 break;
             }
 
+            case "--remove-leftover":
+            {
+                // 第二段：主卸载程序已经删掉其它所有文件，并在退出后把"删掉 Uninstall.exe"的活交给这里。
+                // 目标文件此刻被前一个进程占用，等它退出后即可删除。
+                var leftover = args.Length > 1 ? args[1].Trim('"') : null;
+                var deletedCount = 0;
+
+                var deletedArg = args.FirstOrDefault(v => v.StartsWith("--deleted=", StringComparison.OrdinalIgnoreCase));
+                if (deletedArg != null) int.TryParse(deletedArg.Substring("--deleted=".Length), out deletedCount);
+
+                if (!string.IsNullOrWhiteSpace(leftover))
+                {
+                    for (var i = 0; i < 120 && File.Exists(leftover); i++)
+                    {
+                        try { File.Delete(leftover); }
+                        catch { /* 前一进程还没完全退出，稍后再试 */ }
+
+                        if (!File.Exists(leftover)) break;
+                        Thread.Sleep(500);
+                    }
+                }
+
+                AppDeployment.RegisterDeleteOnReboot(Environment.ProcessPath ?? string.Empty);
+
+                if (!args.Any(v => v.Equals("--silent", StringComparison.OrdinalIgnoreCase)))
+                {
+                    System.Windows.MessageBox.Show(
+                        $"卸载完成。\r\n\r\n已删除 {deletedCount} 个文件，程序目录已清空。",
+                        AppDeployment.AppShortName, MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+
+                break;
+            }
             case "--diagnose":
                 AppendDiagnostics(report);
                 break;
