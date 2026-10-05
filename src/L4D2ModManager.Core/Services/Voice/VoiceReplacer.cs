@@ -316,6 +316,72 @@ public sealed class VoiceManager
     public string Root => _root;
     public string BackupsDirectory { get; private set; }
 
+    /// <summary>把默认备份目录（数据目录\Backups）里的备份迁移到当前备份目录。</summary>
+    public (int Moved, int Kept) MigrateDefaultBackups() => MigrateBackups(Path.Combine(_root, "Backups"));
+
+    /// <summary>
+    /// 把 sourceDirectory 里的 *.zip 搬到当前备份目录。
+    /// 目标已有同名文件时保留原文件（不覆盖），并把情况计入 Kept。
+    /// </summary>
+    public (int Moved, int Kept) MigrateBackups(string sourceDirectory)
+    {
+        int moved = 0, kept = 0;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(sourceDirectory) || !Directory.Exists(sourceDirectory)) return (0, 0);
+
+            var from = Path.GetFullPath(sourceDirectory).TrimEnd(Path.DirectorySeparatorChar);
+            var to = Path.GetFullPath(BackupsDirectory).TrimEnd(Path.DirectorySeparatorChar);
+
+            // 当前位置就是旧位置：不需要迁移
+            if (string.Equals(from, to, StringComparison.OrdinalIgnoreCase)) return (0, 0);
+
+            Directory.CreateDirectory(BackupsDirectory);
+
+            foreach (var file in Directory.EnumerateFiles(sourceDirectory, "*.zip"))
+            {
+                var name = Path.GetFileName(file);
+                var target = Path.Combine(BackupsDirectory, name);
+
+                if (File.Exists(target))
+                {
+                    kept++;
+                    Log.Warn($"迁移备份跳过了同名文件（保留原文件）：{name}");
+                    continue;
+                }
+
+                try
+                {
+                    File.Move(file, target);
+                    moved++;
+                    Log.Info($"已迁移备份：{name}");
+                }
+                catch (Exception ex)
+                {
+                    kept++;
+                    Log.Warn($"迁移备份失败：{name} -> {ex.Message}");
+                }
+            }
+
+            try
+            {
+                if (!Directory.EnumerateFileSystemEntries(sourceDirectory).Any()) Directory.Delete(sourceDirectory);
+            }
+            catch
+            {
+                // 旧目录删不掉无所谓，留着即可
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn("迁移备份失败：" + ex.Message);
+        }
+
+        return (moved, kept);
+    }
+
+
     /// <summary>语音备份目录：可在界面「工具与说明」里自定义；未设置时用数据目录下的 Backups。</summary>
     private static string ResolveBackupsDirectory(string root)
     {

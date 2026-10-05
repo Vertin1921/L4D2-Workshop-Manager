@@ -203,6 +203,7 @@ public sealed class VoiceViewModel : ObservableObject
         OpenGameFolderCommand = new RelayCommand(_ => OpenFolder(_gameRoot));
         OpenBackupsFolderCommand = new RelayCommand(_ => OpenFolder(_manager.BackupsDirectory));
         ChooseBackupFolderCommand = new RelayCommand(_ => ChooseBackupFolder());
+        MigrateBackupsCommand = new RelayCommand(_ => MigrateBackups());
         OpenDataFolderCommand = new RelayCommand(_ => OpenFolder(_manager.DataDirectory));
         OpenLogsFolderCommand = new RelayCommand(_ => OpenFolder(_manager.LogsDirectory));
         OpenAvatarsFolderCommand = new RelayCommand(_ => OpenAvatarsFolder());
@@ -267,6 +268,22 @@ public sealed class VoiceViewModel : ObservableObject
 
     /// <summary>更改语音备份位置（「工具与说明」那一行的按钮）。</summary>
     public RelayCommand ChooseBackupFolderCommand { get; }
+
+    /// <summary>把默认备份目录里的旧备份迁移到当前备份位置。</summary>
+    public RelayCommand MigrateBackupsCommand { get; }
+
+    private void MigrateBackups()
+    {
+        var (moved, kept) = _manager.MigrateDefaultBackups();
+
+        Backups.Clear();
+        foreach (var backup in _manager.ListBackups()) Backups.Add(backup);
+        Raise(nameof(BackupDirectoryText));
+
+        StatusText = moved == 0 && kept == 0
+            ? "没有需要迁移的旧备份（旧位置为空，或当前就是在用旧位置）。"
+            : $"已迁移 {moved} 个旧备份到 {_manager.BackupsDirectory}" + (kept > 0 ? $"；{kept} 个同名/失败项保留在旧位置（未覆盖）" : "。");
+    }
 
     /// <summary>当前备份目录（给按钮做提示文字）。</summary>
     public string BackupDirectoryText => _manager.BackupsDirectory;

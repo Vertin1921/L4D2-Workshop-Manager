@@ -235,6 +235,9 @@
                             <Button Style="{StaticResource Button.Ghost}" Content="📁 更改备份位置" Margin="8,0,0,8"
                                     Command="{Binding ChooseBackupFolderCommand}"
                                     ToolTip="{Binding BackupDirectoryText, StringFormat=当前备份位置：{0}}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="📦 迁移旧备份" Margin="8,0,0,8"
+                                    Command="{Binding MigrateBackupsCommand}"
+                                    ToolTip="把默认备份目录（数据目录\Backups）里的 ZIP 搬到当前备份位置；同名文件不覆盖" />
                         </WrapPanel>
                         <TextBlock Text="{Binding CacheNoticeText}" Style="{StaticResource Text.Muted}" Margin="0,10,0,0" TextWrapping="Wrap" />
                         <TextBlock Text="{Binding MultiplayerNoticeText}" Style="{StaticResource Text.Muted}" Margin="0,8,0,0" TextWrapping="Wrap" />
