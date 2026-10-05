@@ -22,6 +22,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // 自愈：安装目录里的 Uninstall.exe 可能来自旧版本安装包（表现为"双击卸载程序却打开了管理器"），
+        // 只要发现它与当前程序不是同一份，就用当前程序覆盖它。
+        SynchronizeUninstaller();
+
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             Log.Error("未处理异常", args.ExceptionObject as Exception);
@@ -128,6 +132,37 @@ public partial class App : Application
         {
             Log.Warn($"提权流程异常（忽略）：{ex.Message}");
             return false;
+        }
+    }
+
+    /// <summary>让安装目录里的 Uninstall.exe 与当前程序保持同版本（旧副本会导致卸载程序打开管理器）。</summary>
+    private static void SynchronizeUninstaller()
+    {
+        try
+        {
+            // 自己就是卸载程序时不要动（走的是卸载流程）
+            if (Core.Services.Deployment.AppDeployment.IsUninstallerProcess()) return;
+
+            var self = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(self) || !File.Exists(self)) return;
+
+            var directory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+            var uninstaller = Path.Combine(directory, Core.Services.Deployment.AppDeployment.UninstallerName);
+
+            if (!File.Exists(uninstaller)) return;
+            if (string.Equals(Path.GetFullPath(self), Path.GetFullPath(uninstaller), StringComparison.OrdinalIgnoreCase)) return;
+
+            var selfLength = new FileInfo(self).Length;
+            var otherLength = new FileInfo(uninstaller).Length;
+
+            if (selfLength == otherLength) return;
+
+            File.Copy(self, uninstaller, overwrite: true);
+            Log.Info("已把安装目录里的卸载程序更新为当前版本");
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"同步卸载程序失败：{ex.Message}");
         }
     }
 
