@@ -1,4 +1,4 @@
-name: Release
+﻿name: Release
 
 # 自动发布：推送 v* 标签，或在 Actions 页面手动触发
 on:
@@ -54,8 +54,10 @@ jobs:
 
       - name: 写入版本号
         shell: pwsh
+        env:
+          L4D2MM_NEW_VERSION: ${{ steps.ver.outputs.version }}
         run: |
-          ./build/bump-version.ps1 -NewVersion '${{ steps.ver.outputs.version }}' -NoBuild
+          ./build/bump-version.ps1 -NoBuild
 
       - name: 构建并打包（安装程序 + 便携版）
         shell: pwsh

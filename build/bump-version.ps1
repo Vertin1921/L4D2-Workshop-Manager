@@ -25,6 +25,11 @@ $major = [int]$match.Groups[1].Value
 $minor = [int]$match.Groups[2].Value
 $patch = [int]$match.Groups[3].Value
 
+# 也支持用环境变量传入（GitHub Actions 里更稳妥，避免参数解析问题）
+if ([string]::IsNullOrWhiteSpace($NewVersion) -and -not [string]::IsNullOrWhiteSpace($env:L4D2MM_NEW_VERSION)) {
+    $NewVersion = $env:L4D2MM_NEW_VERSION
+}
+
 if (-not [string]::IsNullOrWhiteSpace($NewVersion)) {
     if ($NewVersion -notmatch '^\d+\.\d+\.\d+$') { throw "版本号格式应为 x.y.z，例如 -NewVersion 1.2.0" }
     $newVersion = $NewVersion
