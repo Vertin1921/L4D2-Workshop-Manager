@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
@@ -327,6 +327,15 @@ public static class AppDeployment
 
         if (string.IsNullOrWhiteSpace(target) || !Directory.Exists(target))
             throw new InvalidOperationException("未找到安装目录，无法卸载。");
+
+        // 卸载前先关掉正在运行的主程序：否则程序自身的 exe 与运行库被占用，
+        // 只能登记为"重启后清理"，安装目录会残留大量文件。
+        var closeResult = CloseRunningInstances();
+        if (closeResult.Closed > 0)
+        {
+            Log.Info($"卸载前已自动关闭 {closeResult.Closed} 个正在运行的程序实例");
+            progress?.Report(new UninstallProgress(2, $"已自动关闭 {closeResult.Closed} 个正在运行的程序实例…"));
+        }
 
         // 顺序很重要：先移除快捷方式与注册表项（此时程序文件还在，相关程序集可正常加载）
         progress?.Report(new UninstallProgress(5, "删除快捷方式…"));
