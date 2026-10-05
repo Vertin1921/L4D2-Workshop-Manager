@@ -48,8 +48,8 @@ public partial class MainWindow : Window
         }
 
         UninstallLocationText.Text = string.IsNullOrWhiteSpace(location)
-            ? "未检测到安装目录，将尝试从注册表卸载信息中查找。"
-            : $"安装目录：{location}";
+            ? "未检测到程序目录，将尝试从注册表卸载信息中查找。"
+            : $"程序目录：{location}";
     }
 
     private void SwitchToUninstall_Click(object sender, RoutedEventArgs e) => EnterUninstallMode(null);
@@ -73,7 +73,9 @@ public partial class MainWindow : Window
     public void Configure(CommandLineOptions options)
     {
         _options = options;
-        _uninstallMode = options.Uninstall;
+        // 以 Uninstall 开头的文件名启动时（打包成 Uninstall.exe），直接进入卸载界面；
+        // 安装程序清单是 requireAdministrator，因此双击即自动获得管理员权限。
+        _uninstallMode = options.Uninstall || L4D2ModManager.Core.Services.Deployment.AppDeployment.IsUninstallerProcess();
 
         if (_uninstallMode)
         {
@@ -81,7 +83,7 @@ public partial class MainWindow : Window
         }
         else
         {
-            // 覆盖更新：优先用命令行指定目录 → 已安装目录（注册表）→ 默认目录
+            // 覆盖修复：优先用命令行指定目录 → 已程序目录（注册表）→ 默认目录
             if (!string.IsNullOrWhiteSpace(options.InstallDirectory))
             {
                 PathBox.Text = options.InstallDirectory;
@@ -91,9 +93,9 @@ public partial class MainWindow : Window
             {
                 _updateMode = true;
                 PathBox.Text = installedPath;
-                HeaderText.Text = "更新 " + Installer.AppShortName;
+                HeaderText.Text = "修复 " + Installer.AppShortName;
                 UninstallShortcutButton.Visibility = Visibility.Visible;
-                SubHeaderText.Text = $"检测到已安装版本 {installedVersion}，将直接覆盖更新到 " +
+                SubHeaderText.Text = $"检测到已安装版本 {installedVersion}，将直接覆盖修复到 " +
                                      L4D2ModManager.Core.Services.Deployment.AppDeployment.Version;
             }
             else
@@ -118,9 +120,9 @@ public partial class MainWindow : Window
             }
             else if (_updateMode)
             {
-                StatusText.Text = $"覆盖更新：{PathBox.Text}\n" +
+                StatusText.Text = $"覆盖修复：{PathBox.Text}\n" +
                                   "安装时会自动关闭正在运行的程序；你的 Mod、配置与数据库都会保留。";
-                ActionButton.Content = "更新";
+                ActionButton.Content = "修复";
             }
             else
             {
@@ -172,7 +174,7 @@ public partial class MainWindow : Window
     {
         var dialog = new OpenFileDialog
         {
-            Title = "选择安装目录",
+            Title = "选择程序目录",
             ValidateNames = false,
             CheckFileExists = false,
             CheckPathExists = true,
@@ -209,7 +211,7 @@ public partial class MainWindow : Window
         var target = PathBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(target))
         {
-            MessageBox.Show(this, "请先选择安装目录。", "需要安装目录", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, "请先选择程序目录。", "需要程序目录", MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
@@ -282,7 +284,7 @@ public partial class MainWindow : Window
 
         var confirm = MessageBox.Show(this,
             $"确定要卸载 {Installer.AppShortName} 吗？\r\n\r\n" +
-            $"安装目录：{target}\r\n\r\n" +
+            $"程序目录：{target}\r\n\r\n" +
             "只删除程序自己的文件，同目录里的 Mod / 地图等一律保留。",
             "确认卸载", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (confirm != MessageBoxResult.Yes) return;
