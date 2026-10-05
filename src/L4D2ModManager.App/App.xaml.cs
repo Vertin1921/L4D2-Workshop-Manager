@@ -152,13 +152,17 @@ public partial class App : Application
             if (!File.Exists(uninstaller)) return;
             if (string.Equals(Path.GetFullPath(self), Path.GetFullPath(uninstaller), StringComparison.OrdinalIgnoreCase)) return;
 
-            var selfLength = new FileInfo(self).Length;
-            var otherLength = new FileInfo(uninstaller).Length;
+            var selfInfo = new FileInfo(self);
+            var uninstallerInfo = new FileInfo(uninstaller);
 
-            if (selfLength == otherLength) return;
+            // 版本不同（大小不同，或卸载程序比主程序旧）就用当前版本覆盖它
+            var outdated = selfInfo.Length != uninstallerInfo.Length ||
+                           uninstallerInfo.LastWriteTimeUtc < selfInfo.LastWriteTimeUtc.AddMinutes(-1);
+
+            if (!outdated) return;
 
             File.Copy(self, uninstaller, overwrite: true);
-            Log.Info("已把安装目录里的卸载程序更新为当前版本");
+            Log.Info("已把程序目录里的卸载程序更新为当前版本");
         }
         catch (Exception ex)
         {
