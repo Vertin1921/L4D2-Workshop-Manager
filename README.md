@@ -1,9 +1,9 @@
-﻿# 求生之路2创意工坊管理器（L4D2 专用 Mod 管理器）
+﻿> # 🐟 本程序由 **DeepSeek Harness 大肥鱼** 生成
+
+# 求生之路2创意工坊管理器（L4D2 Workshop Manager）
 
 > Windows 10 / 11 x64 桌面应用 · C# · .NET 8 · WPF · 暗黑（L4D2 黑 + 暗红）× macOS 风格界面
->
-> **本程序由 DeepSeek Harness 大肥鱼生成** 🐟
-
+> 英文名：**L4D2 Workshop Manager** ｜ 仓库：`L4D2-Workshop-Manager`
 ## 这是什么
 
 一个把《Left 4 Dead 2》的 **addons 与创意工坊订阅整理得井井有条**的桌面管理器：
@@ -43,10 +43,8 @@
 仓库内置 `.github/workflows/release.yml`：**推一个 tag，云端自动编译、打包并发布 Release**（附 SHA256 校验清单）。
 
 ```powershell
-# 1) 本地升版本号（会同步改 Directory.Build.props 并重新打包，验证无误）
 .\build\bump-version.ps1 -Minor          # 1.1.0 -> 1.2.0
 
-# 2) 提交后用 tag 触发云端发布
 git add -A
 git commit -m "chore(release): v1.2.0"
 git tag v1.2.0
@@ -179,14 +177,11 @@ l4d2-mod-manager/
 ### 4.2 用命令行（推荐）
 
 ```powershell
-# 日常编译
 pwsh -File .\build\build.ps1
 
-# 运行自检（16 项，含 VPK 解析、启停、冲突、方案、安装/删除等）
 pwsh -File .\build\test.ps1
 pwsh -File .\build\test.ps1 -AutoDetectSteamDirectory   # 顺便用本机真实 Mod 验证
 
-# 一键发布：artifacts\Setup.exe + 便携版 + 便携压缩包
 pwsh -File .\build\build-release.ps1 -RealVpkDirectory "D:\Program Files (x86)\Steam\steamapps\common\Left 4 Dead 2\left4dead2\addons"
 ```
 

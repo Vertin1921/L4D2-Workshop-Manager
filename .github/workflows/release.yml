@@ -91,20 +91,20 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
-          name: 求生之路2创意工坊管理器 v${{ steps.ver.outputs.version }}
+          name: L4D2 Workshop Manager v${{ steps.ver.outputs.version }}
           body: |
-            ## 求生之路2创意工坊管理器 v${{ steps.ver.outputs.version }}
+            ## L4D2 Workshop Manager v${{ steps.ver.outputs.version }}
 
-            本版本由 GitHub Actions 于云端自动构建。
+            Built automatically by GitHub Actions.
 
-            ### 下载哪个？
+            ### Which file should I download?
             | 文件 | 说明 |
             | --- | --- |
-            | `Setup.exe` | **推荐**：单文件安装程序，双击安装（含独立卸载程序） |
-            | `Setup.zip` | 安装包压缩版（内含安装程序 + 独立卸载程序），解压后运行 |
-            | `L4D2ModManager-win-x64-portable.zip` | 便携版：解压到任意目录直接运行，不写注册表 |
+            | `Setup.exe` | **Recommended**: single-file installer (includes its own uninstaller) |
+            | `Setup.zip` | Zipped installer package (installer + standalone uninstaller) |
+            | `L4D2ModManager-win-x64-portable.zip` | Portable: unzip anywhere and run, no registry writes |
 
-            ### ⚠️ 关于杀毒软件报毒 / SmartScreen
+            ### ⚠️ Antivirus / SmartScreen false positives
             本程序**未做商业代码签名**，会被部分杀毒软件误报、并被 SmartScreen 拦截。
             误报原因与处理方式见仓库 README 的「关于杀毒软件报毒 / SmartScreen 提示」章节
             （可添加 Defender 排除项、解除文件锁定、使用文件夹版安装包，或自行编译）。
