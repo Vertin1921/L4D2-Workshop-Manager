@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -91,6 +91,9 @@ public partial class MainWindow : Window
 
         UpdateNavIndicator(animate: false);
 
+        // 启动后自动准备缩略图通道并抓取（第一次运行会自动做一次，之后有图就跳过）
+        _ = ViewModel.AutoPrepareThumbnailsAsync();
+
         try
         {
             await ViewModel.InitializeAsync();
@@ -101,6 +104,9 @@ public partial class MainWindow : Window
         }
 
         UpdateNavIndicator(animate: false);
+
+        // 启动后自动准备缩略图通道并抓取（第一次运行会自动做一次，之后有图就跳过）
+        _ = ViewModel.AutoPrepareThumbnailsAsync();
     }
 
     private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

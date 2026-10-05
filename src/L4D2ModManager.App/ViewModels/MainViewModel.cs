@@ -225,6 +225,53 @@ public sealed class MainViewModel : ObservableObject
         _services.Dialogs.Error(result.Error ?? "启动游戏失败。", "启动游戏", result.CommandLine);
     }
 
+    /// <summary>
+    /// 启动后自动准备缩略图通道并抓取：
+    /// 先切到「创意工坊」把内嵌浏览器初始化出来（这是唯一能打开工坊的网络通道），
+    /// 等它就绪后切回「Mod 管理」并静默抓取缩略图与标签。全部自动，无需点按钮。
+    /// </summary>
+    public async Task AutoPrepareThumbnailsAsync()
+    {
+        try
+        {
+            if (!Library.Config.FetchRemoteThumbnails) return;
+            if (Mods.MissingThumbnailCount == 0) return;
+
+            if (_services.RunWebScript != null)
+            {
+                Mods.StartAutoThumbnailFetch();
+                return;
+            }
+
+            var modsNav = NavItems.FirstOrDefault(n => n.Page is ModsViewModel);
+            var workshopNav = NavItems.FirstOrDefault(n => n.Page is WorkshopViewModel);
+            if (modsNav == null || workshopNav == null) return;
+
+            Mods.SetStatus("正在准备缩略图通道（自动打开一次创意工坊）…");
+            SelectedNav = workshopNav;
+
+            for (int i = 0; i < 24 && _services.RunWebScript == null; i++)
+            {
+                await Task.Delay(500).ConfigureAwait(true);
+            }
+
+            SelectedNav = modsNav;
+
+            if (_services.RunWebScript != null)
+            {
+                Mods.StartAutoThumbnailFetch();
+            }
+            else
+            {
+                Mods.SetStatus("缩略图通道未就绪：可到「创意工坊」停留几秒再回本页，会自动重试。");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"自动准备缩略图通道失败：{ex.Message}");
+        }
+    }
+
     /// <summary>重启游戏（关掉正在运行的，再启动一次）。</summary>
     private void RestartGame()
     {

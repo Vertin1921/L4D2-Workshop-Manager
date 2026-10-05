@@ -85,12 +85,13 @@ public sealed class ModsViewModel : ObservableObject
         DisableSelectedCommand = new RelayCommand(_ => RunStateChange(() => _library.SetState(SelectedModelItems(), ModState.Disabled), "禁用所选"));
         RefreshCommand = new RelayCommand(_ => Refresh());
         ClearSearchCommand = new RelayCommand(_ => SearchText = string.Empty, () => !string.IsNullOrEmpty(SearchText));
-        AddLinkCommand = new AsyncRelayCommand(AddFromLinkAsync, () => !IsBusy && !string.IsNullOrWhiteSpace(LinkInput), ex => ReportError("添加 Mod 失败", ex));
-        SelectAllCommand = new RelayCommand(_ => SelectAll(true), _ => Items.Count > 0);
-        SelectNoneCommand = new RelayCommand(_ => SelectAll(false), _ => SelectedCount > 0);
-        InvertSelectionCommand = new RelayCommand(_ => InvertSelection(), _ => Items.Count > 0);
+        // 输入为空时不再禁用按钮，改为点击后给出提示（避免"按钮是灰的，不知道为什么"）
+        AddLinkCommand = new AsyncRelayCommand(AddFromLinkAsync, () => !IsBusy, ex => ReportError("添加 Mod 失败", ex));
+        SelectAllCommand = new RelayCommand(_ => SelectAll(true));
+        SelectNoneCommand = new RelayCommand(_ => SelectAll(false));
+        InvertSelectionCommand = new RelayCommand(_ => InvertSelection());
         FilterByCategoryCommand = new RelayCommand(parameter => FilterByCategory(parameter));
-        FetchThumbnailsCommand = new AsyncRelayCommand(FetchThumbnailsAsync, () => !IsBusy,
+        FetchThumbnailsCommand = new AsyncRelayCommand(_ => FetchThumbnailsAsync(), _ => !IsBusy,
             ex => ReportError("抓取缩略图失败", ex));
         ToggleCommand = new AsyncRelayCommand(parameter => ToggleAsync(parameter as ModItemViewModel), ex => ReportError("切换状态失败", ex));
         DeleteCommand = new AsyncRelayCommand(parameter => DeleteAsync(parameter as ModItemViewModel), ex => ReportError("删除失败", ex));
@@ -644,7 +645,7 @@ public sealed class ModsViewModel : ObservableObject
     /// 抓取创意工坊缩略图与标签：复用"能打开工坊"的页面通道。
     /// 抓完清空缩略图缓存并刷新列表，类型也会因为拿到真实标签而重新判定。
     /// </summary>
-    private async Task FetchThumbnailsAsync()
+    private async Task FetchThumbnailsAsync(bool silent = false)
     {
         var runScript = _services.RunWebScript;
 
@@ -667,7 +668,7 @@ public sealed class ModsViewModel : ObservableObject
             return;
         }
 
-        if (!_services.Dialogs.Confirm(
+        if (!silent && !_services.Dialogs.Confirm(
                 $"将为 {targets.Count} 个创意工坊 Mod 抓取缩略图与标签。\r\n\r\n" +
                 "缩略图会缓存到本地（之后离线显示），抓到的标签会用来重新判定 Mod 类型。\r\n" +
                 "每批 5 个，可能需要几分钟，期间界面可以正常使用。\r\n\r\n开始吗？",
@@ -686,7 +687,7 @@ public sealed class ModsViewModel : ObservableObject
             Refresh();
 
             ProgressText = $"抓取完成：{summary.Text}";
-            _services.Dialogs.Info(summary.Text, "抓取缩略图");
+            if (!silent) _services.Dialogs.Info(summary.Text, "抓取缩略图");
         }
         finally
         {
@@ -705,6 +706,26 @@ public sealed class ModsViewModel : ObservableObject
         _ = FetchThumbnailsAsync();
     }
 
+    /// <summary>还缺缩略图的 Mod 数量。</summary>
+    public int MissingThumbnailCount => Items.Count(i => !i.HasThumbnail);
+
+    /// <summary>供启动流程直接触发自动抓取（静默，不弹确认框）。</summary>
+    public void StartAutoThumbnailFetch() => _ = FetchThumbnailsAsync(silent: true);
+
+    /// <summary>设置状态栏文字。</summary>
+    public void SetStatus(string text) => ProgressText = text;
+
+    /// <summary>重新求值所有命令的可用性（列表内容变化后必须调用，否则按钮会一直是灰的）。</summary>
+    private void RaiseCommandStates()
+    {
+        SelectAllCommand?.RaiseCanExecuteChanged();
+        SelectNoneCommand?.RaiseCanExecuteChanged();
+        InvertSelectionCommand?.RaiseCanExecuteChanged();
+        EnableSelectedCommand?.RaiseCanExecuteChanged();
+        DisableSelectedCommand?.RaiseCanExecuteChanged();
+        AddLinkCommand?.RaiseCanExecuteChanged();
+        FetchThumbnailsCommand?.RaiseCanExecuteChanged();
+    }
     private void StartThumbnailPump(IReadOnlyList<ModItemViewModel> items)
     {
         _thumbnailCts?.Cancel();

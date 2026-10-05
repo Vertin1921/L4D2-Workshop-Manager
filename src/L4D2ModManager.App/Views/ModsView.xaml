@@ -58,9 +58,6 @@
                 <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="10,0,0,0">
                     <CheckBox Style="{StaticResource CheckBox.Dark}" Content="只看冲突" VerticalAlignment="Center"
                               IsChecked="{Binding ShowOnlyConflicts}" Margin="0,0,10,0" />
-                    <Button Style="{StaticResource Button.Primary}" Content="⬇ 抓取缩略图" Command="{Binding FetchThumbnailsCommand}"
-                            Margin="0,0,8,0"
-                            ToolTip="从创意工坊抓取缩略图与标签（需要先打开过一次「创意工坊」页面）" />
                     <Button Style="{StaticResource Button.Ghost}" Command="{Binding RefreshCommand}"
                             ToolTip="刷新列表与缩略图（扫描/加载时图标会旋转）">
                         <StackPanel Orientation="Horizontal">
