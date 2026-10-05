@@ -91,9 +91,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
-          name: L4D2 Mod Manager v${{ steps.ver.outputs.version }}
+          name: 求生之路2创意工坊管理器 v${{ steps.ver.outputs.version }}
           body: |
-            ## L4D2 Mod Manager v${{ steps.ver.outputs.version }}
+            ## 求生之路2创意工坊管理器 v${{ steps.ver.outputs.version }}
 
             本版本由 GitHub Actions 于云端自动构建。
 
