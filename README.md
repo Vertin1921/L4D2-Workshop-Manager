@@ -1,4 +1,4 @@
-﻿# Left 4 Dead 2 Mod Manager（L4D2 专用 Mod 管理器）
+﻿# 求生之路2创意工坊管理器（L4D2 专用 Mod 管理器）
 
 > Windows 10 / 11 x64 桌面应用 · C# · .NET 8 · WPF · 暗黑（L4D2 黑 + 暗红）× macOS 风格界面
 >

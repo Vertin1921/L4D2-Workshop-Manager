@@ -38,7 +38,7 @@ public sealed record CloseProcessOutcome(int Closed, int Remaining);
 public static class AppDeployment
 {
     public const string AppName = "Left 4 Dead 2 Mod Manager";
-    public const string AppShortName = "L4D2 Mod Manager";
+    public const string AppShortName = "求生之路2创意工坊管理器";
     public const string AppId = "L4D2ModManager";
     public const string ExecutableName = "L4D2ModManager.exe";
 

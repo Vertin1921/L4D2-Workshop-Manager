@@ -3,8 +3,8 @@
 /// <summary>程序基本信息。</summary>
 public static class AppInfo
 {
-    public const string Name = "Left 4 Dead 2 Mod Manager";
-    public const string ShortName = "L4D2 Mod Manager";
+    public const string Name = "求生之路2创意工坊管理器";
+    public const string ShortName = "求生之路2创意工坊管理器";
     /// <summary>
     /// 程序版本：直接读取程序集版本（跟随 Directory.Build.props 的 &lt;Version&gt;），
     /// 这样每次用 build\bump-version.ps1 升版本号后，界面、--version、日志都会同步，不会忘记改这里。

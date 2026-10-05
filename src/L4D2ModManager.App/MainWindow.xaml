@@ -38,9 +38,9 @@
                   MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
                 <StackPanel Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
                     <Border Width="5" Height="18" CornerRadius="2.5" Background="{StaticResource Brush.Accent}" Margin="0,0,10,0" />
-                    <TextBlock Text="LEFT 4 DEAD 2" FontSize="13" FontWeight="Bold" Foreground="{StaticResource Brush.Text}"
+                    <TextBlock Text="求生之路2创意工坊管理器" FontSize="13" FontWeight="Bold" Foreground="{StaticResource Brush.Text}"
                                VerticalAlignment="Center" />
-                    <TextBlock Text="MOD MANAGER" FontSize="13" FontWeight="Normal" Margin="8,0,0,0"
+                    <TextBlock Text="" FontSize="13" FontWeight="Normal" Margin="8,0,0,0"
                                Foreground="{StaticResource Brush.AccentBright}" VerticalAlignment="Center" />
                 </StackPanel>
 
