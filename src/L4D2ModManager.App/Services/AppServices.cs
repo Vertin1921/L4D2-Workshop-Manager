@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using L4D2ModManager.Core.Services;
 using L4D2ModManager.Core.Services.Mods;
 
@@ -30,6 +30,12 @@ public sealed class AppServices : IDisposable
     /// 切换到创意工坊页 + 让内嵌浏览器导航过去）。为 null 时调用方回退到其它方式。
     /// </summary>
     public Action<string>? ShowWorkshopItem { get; set; }
+
+    /// <summary>
+    /// 在创意工坊页面里执行 JavaScript（由 WorkshopView 在 WebView2 就绪后注入）。
+    /// Mod 管理页抓取缩略图/标签时复用它——这样复用的正是"能打开工坊"的那条网络通道。
+    /// </summary>
+    public Func<string, Task<string?>>? RunWebScript { get; set; }
 
     /// <summary>初始化：创建数据目录、载入配置与数据库、探测 Steam 路径。</summary>
     public void Initialize()

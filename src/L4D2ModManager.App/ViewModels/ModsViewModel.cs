@@ -43,6 +43,7 @@ public sealed class ModsViewModel : ObservableObject
     private int _selectedCount;
     private bool _updatingSelection;
     private string _thumbnailSummary = string.Empty;
+    private bool _autoThumbnailFetchTried;
 
     public ModsViewModel(AppServices services)
     {
@@ -89,6 +90,8 @@ public sealed class ModsViewModel : ObservableObject
         SelectNoneCommand = new RelayCommand(_ => SelectAll(false), _ => SelectedCount > 0);
         InvertSelectionCommand = new RelayCommand(_ => InvertSelection(), _ => Items.Count > 0);
         FilterByCategoryCommand = new RelayCommand(parameter => FilterByCategory(parameter));
+        FetchThumbnailsCommand = new AsyncRelayCommand(FetchThumbnailsAsync, () => !IsBusy,
+            ex => ReportError("抓取缩略图失败", ex));
         ToggleCommand = new AsyncRelayCommand(parameter => ToggleAsync(parameter as ModItemViewModel), ex => ReportError("切换状态失败", ex));
         DeleteCommand = new AsyncRelayCommand(parameter => DeleteAsync(parameter as ModItemViewModel), ex => ReportError("删除失败", ex));
         OpenFolderCommand = new RelayCommand(parameter => OpenFolder(parameter as ModItemViewModel));
@@ -140,6 +143,9 @@ public sealed class ModsViewModel : ObservableObject
 
     /// <summary>点击卡片上的类型徽章 → 只看该类型（参数可以是 ModItemViewModel 或 ModCategory）。</summary>
     public RelayCommand FilterByCategoryCommand { get; }
+
+    /// <summary>从创意工坊抓取所有 Mod 的缩略图与标签（标签用于判定类型）。</summary>
+    public AsyncRelayCommand FetchThumbnailsCommand { get; }
 
     /// <summary>按类型筛选（再次点击同一类型则取消筛选，回到全部分类）。</summary>
     private void FilterByCategory(object? parameter)
@@ -634,6 +640,71 @@ public sealed class ModsViewModel : ObservableObject
     /// 分批加载缩略图：串行 + 每张之间让出 UI 线程。
     /// 相比"一次性并发加载 100 多张图片"，滚动和切换筛选都明显更跟手。
     /// </summary>
+    /// <summary>
+    /// 抓取创意工坊缩略图与标签：复用"能打开工坊"的页面通道。
+    /// 抓完清空缩略图缓存并刷新列表，类型也会因为拿到真实标签而重新判定。
+    /// </summary>
+    private async Task FetchThumbnailsAsync()
+    {
+        var runScript = _services.RunWebScript;
+
+        if (runScript == null)
+        {
+            _services.Dialogs.Info(
+                "缩略图需要通过程序内的创意工坊页面去取（这样用的是你当前能打开工坊的网络）。\r\n\r\n" +
+                "请先点一次左侧「创意工坊」让它加载出来，再回到本页点这个按钮。",
+                "抓取缩略图");
+            return;
+        }
+
+        var fetcher = new Core.Services.Workshop.WorkshopMetadataFetcher(_library);
+        var targets = fetcher.CollectTargets();
+
+        if (targets.Count == 0)
+        {
+            _services.Dialogs.Info("没有找到带创意工坊 ID 的 Mod（只有工坊订阅/下载的 Mod 才有缩略图可抓）。",
+                "抓取缩略图");
+            return;
+        }
+
+        if (!_services.Dialogs.Confirm(
+                $"将为 {targets.Count} 个创意工坊 Mod 抓取缩略图与标签。\r\n\r\n" +
+                "缩略图会缓存到本地（之后离线显示），抓到的标签会用来重新判定 Mod 类型。\r\n" +
+                "每批 5 个，可能需要几分钟，期间界面可以正常使用。\r\n\r\n开始吗？",
+                "抓取缩略图", null, "开始抓取"))
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            var progress = new Progress<string>(text => ProgressText = text);
+            var summary = await Task.Run(() => fetcher.FetchAsync(runScript, progress)).ConfigureAwait(true);
+
+            _services.Thumbnails.Clear();
+            Refresh();
+
+            ProgressText = $"抓取完成：{summary.Text}";
+            _services.Dialogs.Info(summary.Text, "抓取缩略图");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    /// <summary>首次进入且还有缺图时，自动抓取一次（需要创意工坊页已经加载过）。</summary>
+    private void TryAutoFetchThumbnails(int missing)
+    {
+        if (_autoThumbnailFetchTried || missing == 0) return;
+        if (!_library.Config.FetchRemoteThumbnails) return;
+        if (_services.RunWebScript == null) return;
+
+        _autoThumbnailFetchTried = true;
+        _ = FetchThumbnailsAsync();
+    }
+
     private void StartThumbnailPump(IReadOnlyList<ModItemViewModel> items)
     {
         _thumbnailCts?.Cancel();
@@ -664,6 +735,7 @@ public sealed class ModsViewModel : ObservableObject
 
             var loaded = items.Count(i => i.HasThumbnail);
             var total = items.Count;
+            TryAutoFetchThumbnails(total - loaded);
 
             await Ui.InvokeAsync(() =>
             {

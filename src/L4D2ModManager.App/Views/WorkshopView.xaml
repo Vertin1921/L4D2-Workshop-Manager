@@ -32,9 +32,6 @@
                         <Button Style="{StaticResource Button.Ghost}" Content="⬇ 下载合集" Margin="6,0,0,0"
                                 Click="DownloadCollection_Click"
                                 ToolTip="抓取当前页面上的所有工坊物品（合集页通常含几十个 Mod）并批量加入下载队列" />
-                <Button Style="{StaticResource Button.Primary}" Content="⬇  抓取缩略图与标签" Margin="8,0,0,0"
-                        Command="{Binding FetchWorkshopMetadataCommand}"
-                        ToolTip="用程序内的工坊页面批量抓取每个 Mod 的缩略图与真实标签（标签用于判定类型）" />
                         <Button Style="{StaticResource Button.Icon}" Content="◀" Margin="10,0,0,0" Command="{Binding BackCommand}" ToolTip="后退" />
                         <Button Style="{StaticResource Button.Icon}" Content="▶" Margin="2,0,0,0" Command="{Binding ForwardCommand}" ToolTip="前进" />
                         <Button Style="{StaticResource Button.Icon}" Content="⟳" Margin="2,0,0,0" Command="{Binding ReloadCommand}" ToolTip="刷新" />

@@ -55,8 +55,18 @@ public sealed class WorkshopViewModel : ObservableObject
 
     public event Action<string>? NavigateRequested;
 
-    /// <summary>由 View 注入：在页面里执行 JavaScript（用于抓取工坊物品页）。</summary>
-    public Func<string, Task<string?>>? ScriptRunner { get; set; }
+    private Func<string, Task<string?>>? _scriptRunner;
+
+    /// <summary>由 View 注入：在页面里执行 JavaScript。同时写入共享服务，供 Mod 管理页复用。</summary>
+    public Func<string, Task<string?>>? ScriptRunner
+    {
+        get => _scriptRunner;
+        set
+        {
+            _scriptRunner = value;
+            _services.RunWebScript = value;
+        }
+    }
 
     /// <summary>批量抓取工坊缩略图与标签（走内嵌浏览器，用当前可用的网络）。</summary>
     public AsyncRelayCommand FetchWorkshopMetadataCommand { get; }
