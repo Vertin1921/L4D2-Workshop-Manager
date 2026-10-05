@@ -1,4 +1,4 @@
-using L4D2ModManager.Core.Models;
+﻿using L4D2ModManager.Core.Models;
 using L4D2ModManager.Core.Services.Vpk;
 
 namespace L4D2ModManager.Core.Services.Mods;
@@ -107,12 +107,67 @@ public sealed class ThumbnailService
         var id = item.WorkshopId ?? ModScanner.GuessWorkshopId(item.FilePath);
         if (string.IsNullOrWhiteSpace(id)) return null;
 
-        var detail = await _workshopClient.GetDetailAsync(id, cancellationToken).ConfigureAwait(false);
-        if (detail?.PreviewUrl == null) return null;
+        // ① 官方 API（部分网络下不可达）
+        try
+        {
+            var detail = await _workshopClient.GetDetailAsync(id, cancellationToken).ConfigureAwait(false);
+            if (detail?.PreviewUrl != null)
+            {
+                var fromApi = await DownloadPreviewAsync(item, detail.PreviewUrl, cancellationToken).ConfigureAwait(false);
+                if (fromApi != null)
+                {
+                    item.ThumbnailPath = fromApi;
+                    return fromApi;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"工坊 API 获取预览图失败（{id}）：{ex.Message}");
+        }
 
-        var path = await DownloadPreviewAsync(item, detail.PreviewUrl, cancellationToken).ConfigureAwait(false);
-        if (path != null) item.ThumbnailPath = path;
-        return path;
+        // ② 退化为抓工坊物品页的 og:image：网页能打开就能拿到预览图
+        var fromPage = await TryPageImageAsync(item, id, cancellationToken).ConfigureAwait(false);
+        if (fromPage != null) item.ThumbnailPath = fromPage;
+        return fromPage;
+    }
+
+    /// <summary>从工坊物品页的 &lt;meta property="og:image"&gt; 取预览图（不依赖官方 API）。</summary>
+    private async Task<string?> TryPageImageAsync(ModItem item, string workshopId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + Uri.EscapeDataString(workshopId);
+            var html = await _http.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
+
+            var match = System.Text.RegularExpressions.Regex.Match(
+                html,
+                "<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            if (!match.Success)
+            {
+                match = System.Text.RegularExpressions.Regex.Match(
+                    html,
+                    "<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
+
+            if (!match.Success)
+            {
+                Log.Warn($"工坊页面里没有找到 og:image（{workshopId}）");
+                return null;
+            }
+
+            var imageUrl = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value);
+            Log.Info($"从工坊页面取到预览图：{workshopId} -> {imageUrl}");
+            return await DownloadPreviewAsync(item, imageUrl, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"抓取工坊页面预览图失败（{workshopId}）：{ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>删除某个 Mod 的缩略图缓存。</summary>

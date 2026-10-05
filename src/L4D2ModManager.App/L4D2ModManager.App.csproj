@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <!--
     WPF 前端：Left 4 Dead 2 Mod Manager
@@ -36,6 +36,9 @@
 
   <ItemGroup>
     <None Update="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
+
+    <!-- 内置角色头像：安装后默认就有图（离线可用），用户可用数据目录里的图片覆盖 -->
+    <Resource Include="Assets\avatars\*.png" />
   </ItemGroup>
 
 </Project>

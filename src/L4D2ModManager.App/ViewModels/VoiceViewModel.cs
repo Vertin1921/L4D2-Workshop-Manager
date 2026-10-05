@@ -215,6 +215,7 @@ public sealed class VoiceViewModel : ObservableObject
 
         Log.MessageLogged += OnMessageLogged;
 
+        EnsureBundledAvatars();
         DetectGamePath(force: false);
         Refresh();
         TryAutoDownloadAvatars();
@@ -836,6 +837,46 @@ public sealed class VoiceViewModel : ObservableObject
     }
 
     /// <summary>首次进入且没有任何头像时，后台自动尝试获取一次（可在设置/配置里关掉）。</summary>
+    /// <summary>
+    /// 把内置（随程序打包）的八张角色头像释放到数据目录。
+    /// 只在本地没有该角色头像时写入，所以用户的替换图不会被覆盖。
+    /// </summary>
+    private void EnsureBundledAvatars()
+    {
+        try
+        {
+            Directory.CreateDirectory(_manager.AvatarDirectory);
+            int released = 0;
+
+            foreach (var info in VoiceCharacters.All)
+            {
+                if (_manager.FindAvatar(info) != null) continue;
+
+                var uri = new Uri("pack://application:,,,/Assets/avatars/" + info.Codename + ".png");
+                var resource = System.Windows.Application.GetResourceStream(uri);
+                if (resource == null) continue;
+
+                using (var stream = resource.Stream)
+                using (var file = File.Create(Path.Combine(_manager.AvatarDirectory, info.Codename + ".png")))
+                {
+                    stream.CopyTo(file);
+                }
+
+                released++;
+            }
+
+            if (released > 0)
+            {
+                Log.Info($"[语音头像] 已释放 {released} 张内置头像到 {_manager.AvatarDirectory}");
+                AvatarHintText = $"人物头像：已使用内置头像（{released} 张），可在 Avatars 目录里替换成你自己的图";
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"释放内置头像失败：{ex.Message}");
+        }
+    }
+
     private void TryAutoDownloadAvatars()
     {
         if (_avatarAutoTried) return;
