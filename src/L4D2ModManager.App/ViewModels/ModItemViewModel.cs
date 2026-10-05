@@ -22,6 +22,13 @@ public sealed class ModItemViewModel : ObservableObject
 
     public ModItem Model { get; }
 
+    /// <summary>
+    /// 所属的列表 ViewModel。
+    /// 右键菜单（ContextMenu）不在可视树上，用 RelativeSource 找不到 UserControl，
+    /// 因此菜单与行内按钮统一通过 Owner.XxxCommand 绑定命令。
+    /// </summary>
+    public ModsViewModel Owner => _owner;
+
     /// <summary>多选框状态。</summary>
     public bool IsSelected
     {

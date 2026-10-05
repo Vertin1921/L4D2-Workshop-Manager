@@ -594,6 +594,24 @@ public sealed class ModsViewModel : ObservableObject
     private void ShowDetails(ModItemViewModel? item)
     {
         if (item == null) return;
+
+        // 有创意工坊 ID：直接在程序内部的创意工坊页面打开（不跳外部浏览器）
+        var workshopId = item.Model.WorkshopId;
+        if (!string.IsNullOrWhiteSpace(workshopId) && _services.ShowWorkshopItem != null)
+        {
+            _services.ShowWorkshopItem(workshopId!);
+            ProgressText = $"已在创意工坊页面打开：{item.DisplayName}";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(workshopId))
+        {
+            _services.Dialogs.Info(item.DisplayName, "Mod 详情",
+                item.DetailText + "\r\n\r\n创意工坊 ID：" + workshopId + "\r\n页面地址：" +
+                Core.Models.WorkshopItemInfo.BuildPageUrl(workshopId!));
+            return;
+        }
+
         _services.Dialogs.Info(item.DisplayName, "Mod 详情", item.DetailText);
     }
 

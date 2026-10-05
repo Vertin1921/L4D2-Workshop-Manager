@@ -99,6 +99,22 @@ public sealed class WorkshopViewModel : ObservableObject
         set => Set(ref _searchText, value);
     }
 
+    /// <summary>
+    /// 在程序内部的创意工坊页面打开某个工坊物品（供 Mod 列表「查看详情」跳转使用）。
+    /// </summary>
+    public void OpenWorkshopItem(string workshopIdOrUrl)
+    {
+        if (string.IsNullOrWhiteSpace(workshopIdOrUrl)) return;
+
+        var url = workshopIdOrUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? workshopIdOrUrl
+            : Core.Models.WorkshopItemInfo.BuildPageUrl(workshopIdOrUrl.Trim());
+
+        CurrentUrl = url;
+        StatusText = "正在打开工坊页面：" + url;
+        NavigateRequested?.Invoke(url);
+    }
+
     /// <summary>手动输入工坊 ID / 链接。</summary>
     public string ManualId
     {

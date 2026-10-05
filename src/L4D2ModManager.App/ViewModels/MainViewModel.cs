@@ -61,6 +61,15 @@ public sealed class MainViewModel : ObservableObject
         Voice = new VoiceViewModel(services);
         Settings = new SettingsViewModel(services);
 
+        // Mod 列表「查看详情」→ 切到创意工坊页并在内嵌浏览器里打开该物品
+        services.ShowWorkshopItem = workshopId =>
+        {
+            var target = NavItems.FirstOrDefault(n => n.Page is WorkshopViewModel);
+            if (target != null) SelectedNav = target;
+
+            Workshop.OpenWorkshopItem(workshopId);
+        };
+
         NavItems = new List<NavItem>
         {
             new("🎮", "Mod 管理", "扫描 / 启停 / 排序", Mods),

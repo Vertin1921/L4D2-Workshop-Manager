@@ -1230,6 +1230,15 @@ internal static class Program
         var brokenZip = Path.Combine(root, "broken.zip");
         File.WriteAllText(brokenZip, "not a zip");
         Check.False(manager.VerifyBackup(brokenZip).Success, "损坏的 ZIP 不应通过验证");
+
+        // ⑩ 头像图片格式识别（只按文件头判断，避免把 HTML 错误页存成头像）
+        Check.Equal(".png", AvatarDownloader.DetectImageExtension(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00 }),
+            "PNG 文件头应识别为 .png");
+        Check.Equal(".jpg", AvatarDownloader.DetectImageExtension(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 }),
+            "JPEG 文件头应识别为 .jpg");
+        Check.True(AvatarDownloader.DetectImageExtension(
+                System.Text.Encoding.ASCII.GetBytes("<html>404 Not Found</html>")) == null,
+            "HTML 内容不应被当成图片");
     }
 
     private static async Task TestWorkshopParsing()

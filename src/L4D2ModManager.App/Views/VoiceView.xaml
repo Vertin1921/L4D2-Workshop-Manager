@@ -1,4 +1,4 @@
-<UserControl x:Class="L4D2ModManager.App.Views.VoiceView"
+﻿<UserControl x:Class="L4D2ModManager.App.Views.VoiceView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -191,7 +191,9 @@
                     <StackPanel>
                         <TextBlock Text="工具与说明" Style="{StaticResource Text.Section}" />
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                            <Button Style="{StaticResource Button.Ghost}" Content="📂 打开游戏目录" Command="{Binding OpenGameFolderCommand}" />
+                            <Button Style="{StaticResource Button.Primary}" Content="⬇  下载人物头像" Command="{Binding DownloadAvatarsCommand}"
+                                    ToolTip="从社区维基抓取八名生还者的头像并缓存到本机（可自己替换）" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="📂 打开游戏目录" Margin="8,0,0,0" Command="{Binding OpenGameFolderCommand}" />
                             <Button Style="{StaticResource Button.Ghost}" Content="📄 打开日志目录" Margin="8,0,0,0" Command="{Binding OpenLogsFolderCommand}" />
                             <Button Style="{StaticResource Button.Primary}" Content="🎧 声音缓存说明" Margin="8,0,0,0" Command="{Binding CacheHelpCommand}" />
                             <Button Style="{StaticResource Button.Ghost}" Content="📋 复制 snd_rebuildaudiocache" Margin="8,0,0,0" Command="{Binding CopyCacheCommand}" />

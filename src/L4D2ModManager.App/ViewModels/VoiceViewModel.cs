@@ -166,6 +166,7 @@ public sealed class VoiceViewModel : ObservableObject
         OpenDataFolderCommand = new RelayCommand(_ => OpenFolder(_manager.DataDirectory));
         OpenLogsFolderCommand = new RelayCommand(_ => OpenFolder(_manager.LogsDirectory));
         OpenAvatarsFolderCommand = new RelayCommand(_ => OpenAvatarsFolder());
+        DownloadAvatarsCommand = new AsyncRelayCommand(DownloadAvatarsAsync, () => !IsBusy, ex => Report("下载头像失败", ex));
         CacheHelpCommand = new RelayCommand(_ => ShowCacheHelp());
         CopyCacheCommand = new RelayCommand(_ => CopyToClipboard(VoiceManager.RebuildCacheCommand, "已复制：snd_rebuildaudiocache"));
         CopyQuitCommand = new RelayCommand(_ => CopyToClipboard(VoiceManager.QuitCommand, "已复制：quit"));
@@ -219,6 +220,9 @@ public sealed class VoiceViewModel : ObservableObject
     public RelayCommand OpenLogsFolderCommand { get; }
 
     public RelayCommand OpenAvatarsFolderCommand { get; }
+
+    /// <summary>从社区维基下载八名角色的头像（缺失的才下载）。</summary>
+    public AsyncRelayCommand DownloadAvatarsCommand { get; }
 
     public RelayCommand CacheHelpCommand { get; }
 
@@ -712,6 +716,42 @@ public sealed class VoiceViewModel : ObservableObject
         }
 
         OpenFolder(dlcDirectories[0]);
+    }
+
+    private async Task DownloadAvatarsAsync()
+    {
+        if (!_services.Dialogs.Confirm(
+                "将从同人维基（left4dead.fandom.com）抓取八名生还者的头像，保存到：\r\n" +
+                $"    {_manager.AvatarDirectory}\r\n\r\n" +
+                "图片仅缓存在本机用于界面显示；程序不内置任何官方美术。\r\n" +
+                "你也可以把自己的图片命名为代号（如 mechanic.png）放进该目录覆盖。\r\n\r\n开始下载吗？",
+                "下载人物头像", null, "开始下载"))
+        {
+            return;
+        }
+
+        IsBusy = true;
+        StatusText = "正在下载人物头像…";
+        try
+        {
+            var progress = new Progress<string>(message => StatusText = message);
+            var results = await Task.Run(() => AvatarDownloader.DownloadAllAsync(_manager, false, progress)).ConfigureAwait(true);
+
+            var ok = results.Count(r => r.Success && !r.Message.Contains("跳过", StringComparison.Ordinal));
+            var skipped = results.Count(r => r.Message.Contains("跳过", StringComparison.Ordinal));
+            var failed = results.Count(r => !r.Success);
+
+            Refresh();
+            StatusText = $"头像下载完成：新增 {ok} 个，已有 {skipped} 个，失败 {failed} 个";
+
+            var detail = string.Join("\r\n", results.Select(r => $"{(r.Success ? "✓" : "✗")} {r.CharacterName}：{r.Message}"));
+            if (failed > 0) _services.Dialogs.Error(StatusText + "\r\n\r\n" + detail, "下载人物头像");
+            else _services.Dialogs.Info(StatusText + "\r\n\r\n" + detail, "下载人物头像");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private void OpenAvatarsFolder()
