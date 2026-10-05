@@ -1,12 +1,46 @@
-namespace L4D2ModManager.Core.Services;
+﻿namespace L4D2ModManager.Core.Services;
 
 /// <summary>程序基本信息。</summary>
 public static class AppInfo
 {
     public const string Name = "Left 4 Dead 2 Mod Manager";
     public const string ShortName = "L4D2 Mod Manager";
-    public const string Version = "1.0.0";
-    public const string UserAgent = "L4D2ModManager/1.0 (+https://steamcommunity.com/app/550/workshop/)";
+    /// <summary>
+    /// 程序版本：直接读取程序集版本（跟随 Directory.Build.props 的 &lt;Version&gt;），
+    /// 这样每次用 build\bump-version.ps1 升版本号后，界面、--version、日志都会同步，不会忘记改这里。
+    /// </summary>
+    public static string Version { get; } = ResolveVersion();
+
+    /// <summary>联网请求的用户代理（带上当前版本）。</summary>
+    public static string UserAgent => $"L4D2ModManager/{Version} (+https://steamcommunity.com/app/550/workshop/)";
+
+    private static string ResolveVersion()
+    {
+        try
+        {
+            var assembly = typeof(AppInfo).Assembly;
+
+            var informational = assembly
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+                .FirstOrDefault()?
+                .InformationalVersion;
+
+            if (!string.IsNullOrWhiteSpace(informational))
+            {
+                // 形如 1.1.0+<commit>：只取语义版本部分
+                var plus = informational!.IndexOf('+');
+                return plus > 0 ? informational.Substring(0, plus) : informational;
+            }
+
+            var version = assembly.GetName().Version;
+            return version == null ? "1.1.0" : $"{version.Major}.{version.Minor}.{version.Build}";
+        }
+        catch
+        {
+            return "1.1.0";
+        }
+    }
 
     public const string WorkshopHomeUrl = "https://steamcommunity.com/app/550/workshop/";
     public const string WorkshopBrowseUrl = "https://steamcommunity.com/workshop/browse/?appid=550";

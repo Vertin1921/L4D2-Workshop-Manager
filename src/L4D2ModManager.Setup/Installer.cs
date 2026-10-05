@@ -35,7 +35,7 @@ public static class Installer
 {
     public const string AppName = AppDeployment.AppName;
     public const string AppShortName = AppDeployment.AppShortName;
-    public const string AppVersion = AppInfo.Version;
+    public static string AppVersion => AppInfo.Version;
     public const string AppId = AppDeployment.AppId;
     public const string PayloadResourceName = "L4D2ModManager.Setup.payload.zip";
     public const string PayloadFileName = "payload.zip";
