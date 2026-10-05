@@ -1069,6 +1069,19 @@ internal static class Program
         // 4) 默认进程名应来自主程序可执行文件名
         var defaultName = AppDeployment.CloseRunningInstances();
         Check.True(defaultName.Remaining >= 0, "默认进程名调用不应抛异常");
+
+        // 5) 独立卸载程序：生成 / 解析 / 进程名识别
+        var uninstallDirectory = NewDirectory("uninstaller");
+        File.WriteAllText(Path.Combine(uninstallDirectory, AppDeployment.ExecutableName), "stub");
+
+        Check.True(AppDeployment.CreateUninstaller(uninstallDirectory), "应能在安装目录里生成卸载程序");
+        Check.True(File.Exists(Path.Combine(uninstallDirectory, AppDeployment.UninstallerName)), "Uninstall.exe 应存在");
+        Check.Equal(Path.Combine(uninstallDirectory, AppDeployment.UninstallerName),
+            AppDeployment.ResolveUninstaller(uninstallDirectory), "卸载命令应指向 Uninstall.exe");
+        Check.True(AppDeployment.IsUninstallerProcess(Path.Combine(uninstallDirectory, AppDeployment.UninstallerName)),
+            "Uninstall.exe 启动应识别为卸载模式");
+        Check.False(AppDeployment.IsUninstallerProcess(Path.Combine(uninstallDirectory, AppDeployment.ExecutableName)),
+            "主程序启动不应识别为卸载模式");
     }
 
     /// <summary>按 Steam 标签分类：标签优先、无信号归「未知」、短标签不误判。</summary>

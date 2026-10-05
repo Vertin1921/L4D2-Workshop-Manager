@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using Microsoft.Win32;
 
 namespace L4D2ModManager.Setup;
@@ -19,6 +19,11 @@ public partial class MainWindow : Window
 
         // 安装程序启动时把窗口带到最前面一次（不是强制置顶：用户切换窗口后不会一直压在最上面）
         Loaded += (_, _) => BringToFrontOnce();
+
+        // "创建子目录"选项与路径预览
+        SubdirCheck.Checked += (_, _) => UpdateEffectivePath();
+        SubdirCheck.Unchecked += (_, _) => UpdateEffectivePath();
+        PathBox.TextChanged += (_, _) => UpdateEffectivePath();
     }
 
     /// <summary>短暂置顶 + 激活，保证安装程序出现在用户眼前。</summary>
@@ -84,6 +89,10 @@ public partial class MainWindow : Window
 
             DesktopCheck.IsChecked = !options.NoDesktopShortcut;
             StartMenuCheck.IsChecked = !options.NoStartMenuShortcut;
+            // 覆盖更新时目录已经确定，不再允许再套一层子目录
+            SubdirCheck.IsChecked = !_updateMode && options.CreateSubdirectory;
+            SubdirCheck.IsEnabled = !_updateMode;
+            UpdateEffectivePath();
             LaunchCheck.IsChecked = true;
 
             PathHint.Text = Installer.IsElevated
@@ -106,6 +115,31 @@ public partial class MainWindow : Window
             {
                 StatusText.Text = $"安装包大小：{ModItemFormatSize(Installer.PayloadSize)}";
             }
+        }
+    }
+
+    /// <summary>更新"实际安装位置"提示（勾选子目录时会把子目录拼上）。</summary>
+    private void UpdateEffectivePath()
+    {
+        try
+        {
+            var path = PathBox.Text?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                EffectivePathText.Text = string.Empty;
+                return;
+            }
+
+            if (SubdirCheck.IsChecked == true)
+            {
+                path = Path.Combine(path, Installer.AppShortName);
+            }
+
+            EffectivePathText.Text = "实际安装位置：" + path;
+        }
+        catch
+        {
+            EffectivePathText.Text = string.Empty;
         }
     }
 
@@ -182,6 +216,7 @@ public partial class MainWindow : Window
             var options = new InstallOptions
             {
                 TargetDirectory = target,
+                CreateSubdirectory = SubdirCheck.IsChecked == true,
                 DesktopShortcut = DesktopCheck.IsChecked == true,
                 StartMenuShortcut = StartMenuCheck.IsChecked == true,
                 LaunchAfterInstall = LaunchCheck.IsChecked == true,

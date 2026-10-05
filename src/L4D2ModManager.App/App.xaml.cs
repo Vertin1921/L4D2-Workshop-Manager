@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
@@ -155,6 +155,15 @@ public partial class App : Application
         if (args.Length == 0) return false;
 
         var command = args[0].Trim().ToLowerInvariant();
+        // 通过安装目录里的 Uninstall.exe 启动时，等同执行 --uninstall
+        if (L4D2ModManager.Core.Services.Deployment.AppDeployment.IsUninstallerProcess() &&
+            command != "--uninstall")
+        {
+            var extra = args.Where(x => x is "--silent" or "--removedata").ToArray();
+            args = new[] { "--uninstall" }.Concat(extra).ToArray();
+            command = "--uninstall";
+        }
+
         if (command is not ("--version" or "--help" or "-h" or "--diagnose" or "--scan" or "--uninstall" or "--selftest-ui"))
             return false;
 

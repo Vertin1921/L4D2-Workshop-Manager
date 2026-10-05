@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Reflection;
 using System.Security.Principal;
@@ -10,6 +10,9 @@ namespace L4D2ModManager.Setup;
 public sealed class InstallOptions
 {
     public string TargetDirectory { get; set; } = string.Empty;
+
+    /// <summary>在所选目录下再创建一个子目录（L4D2 Mod Manager）后安装。</summary>
+    public bool CreateSubdirectory { get; set; }
     public bool DesktopShortcut { get; set; } = true;
     public bool StartMenuShortcut { get; set; } = true;
     public bool LaunchAfterInstall { get; set; } = true;
@@ -141,6 +144,13 @@ public static class Installer
             : options.TargetDirectory.Trim();
         target = Path.GetFullPath(target);
 
+        // 勾选"创建子目录"时，在所选目录下再建一层（例如 D:\Games → D:\Games\L4D2 Mod Manager）
+        if (options.CreateSubdirectory &&
+            !target.TrimEnd(Path.DirectorySeparatorChar).EndsWith(AppShortName, StringComparison.OrdinalIgnoreCase))
+        {
+            target = Path.Combine(target, AppShortName);
+        }
+
         // 覆盖更新：先关掉正在运行的主程序，否则 exe/dll 被占用会替换失败
         progress?.Report(new InstallProgress { Percent = 1, Message = "检查正在运行的程序…" });
         var closeResult = AppDeployment.CloseRunningInstances();
@@ -202,6 +212,7 @@ public static class Installer
         }
 
         progress?.Report(new InstallProgress { Percent = 88, Message = "创建快捷方式…" });
+        AppDeployment.CreateUninstaller(target);
         AppDeployment.CreateShortcuts(target, options.StartMenuShortcut, options.DesktopShortcut);
 
         if (options.WriteRegistry)

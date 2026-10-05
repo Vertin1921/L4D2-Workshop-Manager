@@ -1,4 +1,4 @@
-<Window x:Class="L4D2ModManager.Setup.MainWindow"
+﻿<Window x:Class="L4D2ModManager.Setup.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="L4D2 Mod Manager 安装程序"
@@ -43,10 +43,12 @@
                     </Grid>
 
                     <TextBlock x:Name="PathHint" Style="{StaticResource MutedText}" Margin="2,6,0,0" />
+                <TextBlock x:Name="EffectivePathText" Style="{StaticResource MutedText}" Margin="2,2,0,0" FontWeight="SemiBold" />
 
                     <StackPanel Margin="0,14,0,0">
                         <CheckBox x:Name="DesktopCheck" Content="创建桌面快捷方式" IsChecked="True" />
                         <CheckBox x:Name="StartMenuCheck" Content="创建开始菜单快捷方式" IsChecked="True" />
+                    <CheckBox x:Name="SubdirCheck" Content="在所选目录下创建子目录（L4D2 Mod Manager）" IsChecked="False" />
                         <CheckBox x:Name="LaunchCheck" Content="安装完成后立即启动" IsChecked="True" />
                     </StackPanel>
                 </StackPanel>

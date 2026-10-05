@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using L4D2ModManager.Core.Services.Deployment;
 
 namespace L4D2ModManager.Setup;
@@ -10,6 +10,12 @@ public partial class App : Application
         base.OnStartup(e);
 
         var options = CommandLineOptions.Parse(e.Args);
+        // 命令行开关：/subdir（在所选目录下再建一层子目录）
+        if (e.Args.Any(a => a.Equals("/subdir", StringComparison.OrdinalIgnoreCase) ||
+                          a.Equals("-subdir", StringComparison.OrdinalIgnoreCase)))
+        {
+            options.CreateSubdirectory = true;
+        }
 
         if (options.Silent)
         {
@@ -74,6 +80,8 @@ public sealed class CommandLineOptions
     public bool Uninstall { get; private set; }
     public bool Silent { get; private set; }
     public bool NoDesktopShortcut { get; private set; }
+    /// <summary>在所选目录下再创建子目录后安装（命令行 /subdir）。</summary>
+    public bool CreateSubdirectory { get; set; }
     public bool NoStartMenuShortcut { get; private set; }
     public bool NoRegistry { get; private set; }
     public bool RemoveUserData { get; private set; }

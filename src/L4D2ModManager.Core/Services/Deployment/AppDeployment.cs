@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
@@ -41,6 +41,9 @@ public static class AppDeployment
     public const string AppShortName = "L4D2 Mod Manager";
     public const string AppId = "L4D2ModManager";
     public const string ExecutableName = "L4D2ModManager.exe";
+
+    /// <summary>独立卸载程序（主程序的副本，靠文件名识别卸载意图）。</summary>
+    public const string UninstallerName = "Uninstall.exe";
 
     /// <summary>数据目录名（%AppData% 下）。</summary>
     public const string UserDataFolderName = "L4D2ModManager";
@@ -106,8 +109,9 @@ public static class AppDeployment
             key.SetValue("Publisher", "L4D2 Mod Manager Project");
             key.SetValue("InstallLocation", installDirectory);
             key.SetValue("DisplayIcon", executable);
-            key.SetValue("UninstallString", $"\"{executable}\" --uninstall");
-            key.SetValue("QuietUninstallString", $"\"{executable}\" --uninstall --silent");
+            var uninstaller = ResolveUninstaller(installDirectory);
+            key.SetValue("UninstallString", $"\"{uninstaller}\"");
+            key.SetValue("QuietUninstallString", $"\"{uninstaller}\" --silent");
             key.SetValue("EstimatedSize", (int)Math.Min(int.MaxValue, installedSizeBytes / 1024), RegistryValueKind.DWord);
             key.SetValue("NoModify", 1, RegistryValueKind.DWord);
             key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
@@ -185,6 +189,51 @@ public static class AppDeployment
         return new CloseProcessOutcome(closed, remaining);
     }
 
+    /// <summary>安装目录里的卸载程序路径（不存在时回退为主程序）。</summary>
+    public static string ResolveUninstaller(string installDirectory)
+    {
+        var uninstaller = Path.Combine(installDirectory, UninstallerName);
+        return File.Exists(uninstaller) ? uninstaller : Path.Combine(installDirectory, ExecutableName);
+    }
+
+    /// <summary>在安装目录里生成独立卸载程序（复制主程序，靠文件名识别卸载意图）。</summary>
+    public static bool CreateUninstaller(string installDirectory)
+    {
+        try
+        {
+            var source = Path.Combine(installDirectory, ExecutableName);
+            var target = Path.Combine(installDirectory, UninstallerName);
+
+            if (!File.Exists(source)) return false;
+
+            File.Copy(source, target, overwrite: true);
+            Log.Info($"已生成卸载程序：{target}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"生成卸载程序失败：{ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>当前进程是否是通过"卸载程序"启动的（文件名以 Uninstall 开头）。</summary>
+    public static bool IsUninstallerProcess(string? executablePath = null)
+    {
+        try
+        {
+            var path = executablePath ?? Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(path)) return false;
+
+            var name = Path.GetFileNameWithoutExtension(path);
+            return name.StartsWith("uninstall", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     /// <summary>创建开始菜单与桌面快捷方式。</summary>
     public static void CreateShortcuts(string installDirectory, bool startMenu, bool desktop)
     {
@@ -197,7 +246,7 @@ public static class AppDeployment
                 var folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), AppShortName);
                 Directory.CreateDirectory(folder);
                 CreateShortcut(Path.Combine(folder, AppShortName + ".lnk"), installDirectory, executable);
-                CreateShortcut(Path.Combine(folder, "卸载 " + AppShortName + ".lnk"), installDirectory, executable, "--uninstall");
+                CreateShortcut(Path.Combine(folder, "卸载 " + AppShortName + ".lnk"), installDirectory, ResolveUninstaller(installDirectory));
             }
             catch (Exception ex)
             {
