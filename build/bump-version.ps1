@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param(
     # 二选一：指定新版本号，或用开关自动递增
-    [string]$Set,
+    [Alias('Set')]
+    [string]$NewVersion,
     [switch]$Major,
     [switch]$Minor,
     [switch]$Patch,
@@ -24,9 +25,9 @@ $major = [int]$match.Groups[1].Value
 $minor = [int]$match.Groups[2].Value
 $patch = [int]$match.Groups[3].Value
 
-if (-not [string]::IsNullOrWhiteSpace($Set)) {
-    if ($Set -notmatch '^\d+\.\d+\.\d+$') { throw "版本号格式应为 x.y.z，例如 -Set 1.2.0" }
-    $newVersion = $Set
+if (-not [string]::IsNullOrWhiteSpace($NewVersion)) {
+    if ($NewVersion -notmatch '^\d+\.\d+\.\d+$') { throw "版本号格式应为 x.y.z，例如 -NewVersion 1.2.0" }
+    $newVersion = $NewVersion
 }
 elseif ($Major) { $newVersion = "$($major + 1).0.0" }
 elseif ($Minor) { $newVersion = "$major.$($minor + 1).0" }
