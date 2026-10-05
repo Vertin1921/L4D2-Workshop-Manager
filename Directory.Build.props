@@ -1,0 +1,27 @@
+<Project>
+
+  <!-- 全局编译设置：所有子项目共用 -->
+  <PropertyGroup>
+    <LangVersion>12.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Company>L4D2 Mod Manager Project</Company>
+    <Product>Left 4 Dead 2 Mod Manager</Product>
+    <AssemblyTitle>Left 4 Dead 2 Mod Manager</AssemblyTitle>
+    <Description>Left 4 Dead 2 Mod 管理器：扫描 addons 与创意工坊目录、读取 VPK 内 addoninfo、按后缀启用/禁用、自动分类、冲突检测、配置方案一键切换，并支持在程序内浏览与下载创意工坊 Mod。</Description>
+    <Copyright>Copyright © 2025 L4D2 Mod Manager Project</Copyright>
+    <Authors>L4D2 Mod Manager Project</Authors>
+    <RepositoryUrl>https://github.com/l4d2-mod-manager/l4d2-mod-manager</RepositoryUrl>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <NeutralLanguage>zh-CN</NeutralLanguage>
+    <SatelliteResourceLanguages>zh-Hans;en</SatelliteResourceLanguages>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AppendTargetFrameworkToOutputPath>true</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+</Project>

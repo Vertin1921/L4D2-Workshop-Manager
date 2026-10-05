@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    自检程序：控制台应用，不依赖任何测试框架（无需联网还原第三方包）。
+    运行方式：在仓库根目录执行 build\test.ps1，或使用 dotnet run 指向本项目。
+    覆盖：VPK 解析（内嵌/预载/外部分卷）、addoninfo 解析、分类、扫描、
+          启停重命名、冲突检测、配置方案、数据库读写、拖放安装、删除、工坊链接解析。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>L4D2ModManager.Tests</RootNamespace>
+    <AssemblyName>L4D2ModManager.Tests</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\L4D2ModManager.Core\L4D2ModManager.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Core 层：纯 .NET 8 类库（不依赖 WPF），包含
+    VPK 解析、Mod 扫描、状态管理、分类、冲突检测、方案、
+    Steam 创意工坊 API 访问与下载管理器。
+    这样设计便于单元测试，也便于以后复用到命令行/其他前端。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>L4D2ModManager.Core</RootNamespace>
+    <AssemblyName>L4D2ModManager.Core</AssemblyName>
+  </PropertyGroup>
+
+</Project>

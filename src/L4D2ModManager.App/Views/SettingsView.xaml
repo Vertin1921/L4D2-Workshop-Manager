@@ -1,0 +1,219 @@
+<UserControl x:Class="L4D2ModManager.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="clr-namespace:L4D2ModManager.App.ViewModels"
+             d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+             mc:Ignorable="d">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel MaxWidth="960" HorizontalAlignment="Left">
+
+            <!-- ============ Mod 目录 ============ -->
+            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <Grid>
+                        <TextBlock Text="📁  Mod 目录" Style="{StaticResource Text.Section}" />
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button Style="{StaticResource Button.Primary}" Content="➕ 添加目录" Command="{Binding AddDirectoryCommand}" />
+                            <Button Style="{StaticResource Button.Danger}" Content="移除所选" Margin="8,0,0,0"
+                                    Command="{Binding RemoveDirectoryCommand}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="🔍 自动探测 Steam" Margin="8,0,0,0"
+                                    Command="{Binding DetectSteamCommand}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,6,0,10"
+                               Text="程序启动时会自动探测 Steam 的 L4D2 addons 目录与创意工坊内容目录；也可以手动添加任意包含 .vpk 的文件夹（例如 D:\Games\L4D2\addons）。" />
+
+                    <ListBox Style="{StaticResource ListBox.Clean}" ItemContainerStyle="{StaticResource ListBoxItem.Clean}"
+                             ItemsSource="{Binding Directories}" SelectedItem="{Binding SelectedDirectory, Mode=TwoWay}"
+                             MaxHeight="220">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Card.Static}" Padding="10,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="📂" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding}" FontFamily="{StaticResource Font.Mono}" FontSize="12"
+                                                   Foreground="{StaticResource Brush.Text}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="720" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <TextBlock Text="{Binding DirectoryCountText}" Style="{StaticResource Text.Muted}" Margin="2,8,0,0" />
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 下载与 Steam ============ -->
+            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="⬇  下载与 Steam" Style="{StaticResource Text.Section}" />
+
+                    <TextBlock Text="下载保存目录（新下载的 .vpk 会放这里）" Style="{StaticResource Text.Muted}" Margin="0,6,0,6" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource TextBox.Dark}"
+                                 Text="{Binding DownloadDirectory, UpdateSourceTrigger=LostFocus}" />
+                        <Button Grid.Column="1" Style="{StaticResource Button.Ghost}" Content="浏览…" Margin="8,0,0,0"
+                                Command="{Binding BrowseDownloadDirectoryCommand}" />
+                        <Button Grid.Column="2" Style="{StaticResource Button.Ghost}" Content="使用 L4D2 addons" Margin="8,0,0,0"
+                                Command="{Binding UseFirstAddonDirectoryCommand}" />
+                    </Grid>
+
+                    <TextBlock Text="Steam 根目录" Style="{StaticResource Text.Muted}" Margin="0,12,0,6" />
+                    <TextBox Style="{StaticResource TextBox.Dark}" Text="{Binding SteamRootPath, UpdateSourceTrigger=LostFocus}" />
+
+                    <TextBlock Text="steamcmd.exe 路径（可选，用于创意工坊下载备用通道）" Style="{StaticResource Text.Muted}" Margin="0,12,0,6" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Grid.Column="0" Style="{StaticResource TextBox.Dark}"
+                                 Text="{Binding SteamCmdPath, UpdateSourceTrigger=LostFocus}" />
+                        <Button Grid.Column="1" Style="{StaticResource Button.Ghost}" Content="浏览…" Margin="8,0,0,0"
+                                Command="{Binding BrowseSteamCmdCommand}" />
+                    </Grid>
+
+                    <TextBlock Text="Steam Web API Key（可选，仅用于接口搜索与作者昵称解析）" Style="{StaticResource Text.Muted}" Margin="0,12,0,6" />
+                    <TextBox Style="{StaticResource TextBox.Dark}" Text="{Binding SteamWebApiKey, UpdateSourceTrigger=LostFocus}" />
+
+                    <TextBlock Text="{Binding SteamStatusText}" Style="{StaticResource Text.Muted}" Margin="0,12,0,0" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding DownloadProvidersText, StringFormat='下载通道：{0}'}" Style="{StaticResource Text.Muted}"
+                               Margin="0,6,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 功能开关 ============ -->
+            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="⚙  功能开关" Style="{StaticResource Text.Section}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="启动时自动扫描 Mod 目录" IsChecked="{Binding AutoScanOnStartup}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="自动探测 Steam 路径（启动时）" IsChecked="{Binding AutoDetectSteamPaths}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="解析 VPK 内部文件清单（冲突检测必需）" IsChecked="{Binding BuildFileIndex}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="扫描完成后自动检测冲突" IsChecked="{Binding DetectConflictsAfterScan}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="从 VPK 中提取内置缩略图（addonimage）" IsChecked="{Binding ExtractThumbnails}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="缺少缩略图时从创意工坊下载预览图" IsChecked="{Binding FetchRemoteThumbnails}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="默认排序时禁用 Mod 排在最前" IsChecked="{Binding DisabledFirst}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="记录详细日志" IsChecked="{Binding VerboseLogging}" />
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 性能与权限 ============ -->
+            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="🚀  性能与权限" Style="{StaticResource Text.Section}" />
+                    <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap"
+                               Text="提示：动画与滚动流畅度主要取决于是否启用硬件加速。关闭毛玻璃后 DWM 不再每帧重算模糊，列表滚动会明显更跟手。" />
+
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Margin="0,10,0,0"
+                              Content="启用毛玻璃（Acrylic）背景 — 更美观，但可能降低滚动与动画流畅度"
+                              IsChecked="{Binding UseAcrylic}" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}"
+                              Content="启动时自动请求管理员权限（UAC）— 直接写入 Steam 安装目录时需要"
+                              IsChecked="{Binding RequestElevationOnStartup}" />
+
+                    <TextBlock Text="{Binding ElevationStatusText}" Style="{StaticResource Text.Muted}" Margin="0,10,0,0" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding GraphicsStatusText}" Style="{StaticResource Text.Muted}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding DragDropStatusText}" Style="{StaticResource Text.Muted}" Margin="0,4,0,0" TextWrapping="Wrap" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Style="{StaticResource Button.Primary}" Content="🛡 以管理员身份重启"
+                                Command="{Binding RestartElevatedCommand}" />
+                        <TextBlock Text="（也可以右键程序 → 以管理员身份运行）" Style="{StaticResource Text.Muted}"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 冲突检测 ============ -->
+            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="🔍  冲突检测" Style="{StaticResource Text.Section}" />
+                    <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap"
+                               Text="判定规则：① CRC32 完全一致的文件（内容一模一样，只是重复打包）判为无影响，默认隐藏；② addoninfo/addonimage 等描述文件与常见共享脚本库自动忽略；③ 按被覆盖文件类型给出严重程度（模型/材质/音频/地图=高，脚本=中）。" />
+                    <TextBlock Text="{Binding BuiltinIgnoreHintText}" Style="{StaticResource Text.Muted}" FontSize="11.5"
+                               Margin="0,8,0,0" TextWrapping="Wrap" />
+                    <TextBlock Text="自定义忽略关键字（每行一个，按内部路径子串匹配，不区分大小写）" Style="{StaticResource Text.Muted}"
+                               Margin="0,12,0,6" />
+                    <TextBox Style="{StaticResource TextBox.Dark}" Height="92" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalContentAlignment="Top" FontFamily="{StaticResource Font.Mono}" FontSize="11.5"
+                             Text="{Binding ConflictIgnoreText, UpdateSourceTrigger=LostFocus}"
+                             ToolTip="例如：scripts/vscripts/my_shared_lib.nut" />
+                    <CheckBox Style="{StaticResource CheckBox.Dark}" Margin="0,10,0,0"
+                              Content="默认隐藏「内容完全相同」的重复文件（推荐）"
+                              IsChecked="{Binding HideIdenticalConflicts}" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="💾  数据位置" Style="{StaticResource Text.Section}" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="数据目录" Style="{StaticResource Text.Muted}" Margin="0,4" />
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding DataDirectoryText}" Style="{StaticResource Text.Body}"
+                                   FontFamily="{StaticResource Font.Mono}" FontSize="11.5" Margin="0,4" TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="配置文件" Style="{StaticResource Text.Muted}" Margin="0,4" />
+                        <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ConfigPathText}" Style="{StaticResource Text.Body}"
+                                   FontFamily="{StaticResource Font.Mono}" FontSize="11.5" Margin="0,4" TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="数据库" Style="{StaticResource Text.Muted}" Margin="0,4" />
+                        <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding DatabasePathText}" Style="{StaticResource Text.Body}"
+                                   FontFamily="{StaticResource Font.Mono}" FontSize="11.5" Margin="0,4" TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="日志目录" Style="{StaticResource Text.Muted}" Margin="0,4" />
+                        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LogPathText}" Style="{StaticResource Text.Body}"
+                                   FontFamily="{StaticResource Font.Mono}" FontSize="11.5" Margin="0,4" TextWrapping="Wrap" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="缩略图缓存" Style="{StaticResource Text.Muted}" Margin="0,4" />
+                        <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding ThumbnailCacheText}" Style="{StaticResource Text.Body}"
+                                   FontFamily="{StaticResource Font.Mono}" FontSize="11.5" Margin="0,4" TextWrapping="Wrap" />
+                    </Grid>
+
+                    <WrapPanel Margin="0,12,0,0">
+                        <Button Style="{StaticResource Button.Ghost}" Content="打开数据目录" Margin="0,0,8,8" Command="{Binding OpenDataFolderCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="打开日志目录" Margin="0,0,8,8" Command="{Binding OpenLogFolderCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="打开配置文件" Margin="0,0,8,8" Command="{Binding OpenConfigFileCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="打开数据库" Margin="0,0,8,8" Command="{Binding OpenDatabaseFileCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="打开缩略图目录" Margin="0,0,8,8" Command="{Binding OpenThumbnailFolderCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="重置内存缩略图缓存" Margin="0,0,8,8" Command="{Binding ResetThumbnailCacheCommand}" />
+                        <Button Style="{StaticResource Button.Danger}" Content="清空缩略图缓存" Margin="0,0,8,8" Command="{Binding ClearThumbnailCacheCommand}" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ============ 状态 ============ -->
+            <Border Style="{StaticResource Card.Static}" Padding="16" Margin="0,0,0,12">
+                <StackPanel>
+                    <TextBlock Text="ℹ  当前状态" Style="{StaticResource Text.Section}" />
+                    <TextBlock Text="{Binding ModCountText}" Style="{StaticResource Text.Body}" Margin="0,4" />
+                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Muted}" Margin="0,4" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Style="{StaticResource Button.Primary}" Content="💾 保存配置与数据库" Command="{Binding SaveCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="↻ 重新载入显示" Margin="8,0,0,0" Command="{Binding ReloadCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

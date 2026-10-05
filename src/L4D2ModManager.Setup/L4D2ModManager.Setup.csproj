@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    安装程序（Setup.exe）
+
+    关于杀软误报的设计取舍（重要）：
+      默认发布为**普通文件夹形式的 .NET 程序**，安装载荷 payload.zip 放在 Setup.exe 同级目录，
+      不使用"单文件自解压 + 内嵌 62MB 资源"的形态 —— 后者是 Defender 等启发式引擎的高风险组合
+      （自解压释放到 %TEMP% 再执行、内嵌大体积二进制资源）。
+
+      需要单文件分发时，把 payload.zip 放到本项目目录再执行：
+          dotnet publish -p:PublishSingleFile=true -p:EmbedPayload=true
+      （此时载荷会被嵌入，安装包变成单个大 exe，代价是误报风险上升。）
+
+    payload.zip 由 build\build-release.ps1 生成。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>L4D2ModManager.Setup</RootNamespace>
+    <AssemblyName>L4D2ModManager.Setup</AssemblyName>
+    <ApplicationIcon>..\L4D2ModManager.App\Assets\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PlatformTarget>x64</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+    <Version>1.0.0</Version>
+    <!-- 默认：文件夹形式发布（非单文件），自包含 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile Condition="'$(PublishSingleFile)' == ''">false</PublishSingleFile>
+    <EnableCompressionInSingleFile Condition="'$(EnableCompressionInSingleFile)' == ''">false</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract Condition="'$(IncludeNativeLibrariesForSelfExtract)' == ''">true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF SDK 的隐式 using 不含 System.IO / System.Net.Http -->
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\L4D2ModManager.Core\L4D2ModManager.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 仅单文件模式才把载荷嵌入；默认从 Setup.exe 同级目录读取 payload.zip -->
+    <EmbeddedResource Include="payload.zip" Condition="Exists('payload.zip') And '$(EmbedPayload)' == 'true'">
+      <LogicalName>L4D2ModManager.Setup.payload.zip</LogicalName>
+    </EmbeddedResource>
+
+    <!-- 文件夹发布时把载荷复制到输出目录 -->
+    <None Include="payload.zip" Condition="Exists('payload.zip') And '$(EmbedPayload)' != 'true'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>payload.zip</Link>
+    </None>
+  </ItemGroup>
+
+</Project>

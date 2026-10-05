@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{2F60D0CF-3EB6-4AB4-BAE4-1BA53E7B6ECD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L4D2ModManager.Core", "src\L4D2ModManager.Core\L4D2ModManager.Core.csproj", "{13DACA85-3F99-4128-8033-6B6D4099F7CF}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{4A30BD5E-9E13-4E93-8199-1EC36DDA3173}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L4D2ModManager.Tests", "tests\L4D2ModManager.Tests\L4D2ModManager.Tests.csproj", "{30E3918E-4085-4169-A61B-85FF415AAB80}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L4D2ModManager.App", "src\L4D2ModManager.App\L4D2ModManager.App.csproj", "{A41C68A9-FF9E-435C-8B19-259B7631CEBB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "L4D2ModManager.Setup", "src\L4D2ModManager.Setup\L4D2ModManager.Setup.csproj", "{0948F218-2CA8-4CE7-ACBD-5FD5BA239F6F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{13DACA85-3F99-4128-8033-6B6D4099F7CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13DACA85-3F99-4128-8033-6B6D4099F7CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13DACA85-3F99-4128-8033-6B6D4099F7CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13DACA85-3F99-4128-8033-6B6D4099F7CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{30E3918E-4085-4169-A61B-85FF415AAB80}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30E3918E-4085-4169-A61B-85FF415AAB80}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30E3918E-4085-4169-A61B-85FF415AAB80}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{30E3918E-4085-4169-A61B-85FF415AAB80}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A41C68A9-FF9E-435C-8B19-259B7631CEBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A41C68A9-FF9E-435C-8B19-259B7631CEBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A41C68A9-FF9E-435C-8B19-259B7631CEBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A41C68A9-FF9E-435C-8B19-259B7631CEBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0948F218-2CA8-4CE7-ACBD-5FD5BA239F6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0948F218-2CA8-4CE7-ACBD-5FD5BA239F6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0948F218-2CA8-4CE7-ACBD-5FD5BA239F6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0948F218-2CA8-4CE7-ACBD-5FD5BA239F6F}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{13DACA85-3F99-4128-8033-6B6D4099F7CF} = {2F60D0CF-3EB6-4AB4-BAE4-1BA53E7B6ECD}
+		{30E3918E-4085-4169-A61B-85FF415AAB80} = {4A30BD5E-9E13-4E93-8199-1EC36DDA3173}
+		{A41C68A9-FF9E-435C-8B19-259B7631CEBB} = {2F60D0CF-3EB6-4AB4-BAE4-1BA53E7B6ECD}
+		{0948F218-2CA8-4CE7-ACBD-5FD5BA239F6F} = {2F60D0CF-3EB6-4AB4-BAE4-1BA53E7B6ECD}
+	EndGlobalSection
+EndGlobal

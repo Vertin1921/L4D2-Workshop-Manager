@@ -1,0 +1,32 @@
+# 编译输出
+bin/
+obj/
+artifacts/
+dist/
+
+# 签名证书（私钥绝对不要提交）
+certs/
+
+# 本地工具链与临时文件（便携 SDK、NuGet 缓存、诊断输出）
+.tooling/
+*.binlog
+
+# 安装程序载荷（由 build\build-release.ps1 生成）
+src/L4D2ModManager.Setup/payload.zip
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# 程序运行期数据（便携模式下可能出现在程序目录）
+Data/
+portable.txt
+
+# 过程文件（自检输出、构建日志、发布目录）
+.tooling*/
+.tooling*
+dist/
+*.log
