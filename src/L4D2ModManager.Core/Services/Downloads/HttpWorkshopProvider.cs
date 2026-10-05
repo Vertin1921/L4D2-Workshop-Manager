@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using L4D2ModManager.Core.Models;
@@ -39,6 +39,22 @@ public sealed class HttpWorkshopProvider : IWorkshopDownloadProvider
         Directory.CreateDirectory(AppPaths.DownloadTempDir);
         var key = string.IsNullOrWhiteSpace(task.WorkshopId) ? task.Id : task.WorkshopId!;
         var partPath = Path.Combine(AppPaths.DownloadTempDir, key + ".part");
+
+        // 同一个 Mod 被重复加入下载队列时，两个任务会抢同一个 .part 文件，
+        // 于是报"The process cannot access the file ... because it is being used by another process"。
+        // 这里先探测：文件被别的任务占着就改用唯一文件名（下载仍会成功，只是不再共享断点文件）。
+        try
+        {
+            if (File.Exists(partPath))
+            {
+                using var probe = new FileStream(partPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+        }
+        catch (IOException)
+        {
+            partPath = Path.Combine(AppPaths.DownloadTempDir, key + "." + Guid.NewGuid().ToString("N").Substring(0, 6) + ".part");
+            Log.Warn($"断点文件被占用，改用新的临时文件：{Path.GetFileName(partPath)}");
+        }
 
         long existing = 0;
         if (File.Exists(partPath))

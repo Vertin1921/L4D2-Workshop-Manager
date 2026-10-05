@@ -492,8 +492,11 @@ public static class AppDeployment
 
                 if (relocated != null)
                 {
-                    deferred.Add(relocated);
+                    // 已经挪出程序目录 => 对用户来说就是"删掉了"：
+                    // 摘要里不再出现"被占用/重启后清理"，只在日志里留记录（重启时系统自动清掉临时文件）。
+                    deleted++;
                     RegisterDeleteOnReboot(relocated);
+                    continue;
                 }
                 else
                 {
