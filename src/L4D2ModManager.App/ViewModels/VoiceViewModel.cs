@@ -50,6 +50,12 @@ public sealed class VoiceCharacterCard : ObservableObject
     /// <summary>已解码头像缓存（键含文件修改时间，图片换了会自动失效）。</summary>
     private static readonly Dictionary<string, ImageSource> AvatarCache = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>清空解码头像缓存（删除本地头像后调用，避免旧图仍显示）。</summary>
+    public static void ClearAvatarCache()
+    {
+        lock (AvatarCache) AvatarCache.Clear();
+    }
+
     /// <summary>头像图片（加载失败时退回首字母圆牌）。解码结果会缓存，避免每次刷新都重新读盘。</summary>
     public ImageSource? AvatarImage
     {
@@ -136,6 +142,10 @@ public sealed class VoiceCharacterCard : ObservableObject
     public void Apply(VoiceCharacterStatus status, string? avatarPath)
     {
         AvatarPath = avatarPath;
+
+        // 图片文件可能已被替换（重新下载 / 手动指定），但路径字符串没变，
+        // Set() 不会触发通知，WPF 就会一直显示旧的解码图 —— 这里强制让绑定重新求值。
+        Raise(nameof(AvatarImage), nameof(HasAvatar), nameof(AvatarSourceText));
         StatusText = status.StatusText;
         DirectoryText = status.DirectoryText;
         FileCountText = status.DirectoryExists
@@ -182,6 +192,7 @@ public sealed class VoiceViewModel : ObservableObject
         OpenVoiceFolderCommand = new RelayCommand(parameter => OpenVoiceFolder(parameter as VoiceCharacterCard));
         OpenDlcFolderCommand = new RelayCommand(parameter => OpenDlcFolder(parameter as VoiceCharacterCard));
         SetAvatarCommand = new RelayCommand(parameter => SetAvatar(parameter as VoiceCharacterCard));
+        ClearAvatarsCommand = new RelayCommand(_ => ClearAvatars());
 
         BrowseExeCommand = new RelayCommand(_ => BrowseExe());
         AutoDetectCommand = new RelayCommand(_ => DetectGamePath(force: true));
@@ -235,6 +246,9 @@ public sealed class VoiceViewModel : ObservableObject
 
     /// <summary>为某个角色手动指定本地头像图片（网络上找不到时用这个）。</summary>
     public RelayCommand SetAvatarCommand { get; }
+
+    /// <summary>清除本机已缓存的人物头像（清掉抓错的图）。</summary>
+    public RelayCommand ClearAvatarsCommand { get; }
 
     public RelayCommand BrowseExeCommand { get; }
 
@@ -887,6 +901,41 @@ public sealed class VoiceViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private void ClearAvatars()
+    {
+        if (!_services.Dialogs.Confirm(
+                $"将删除本机已缓存的人物头像：\r\n    {_manager.AvatarDirectory}\r\n\r\n" +
+                "删除后可以重新点「下载人物头像」抓取，或用每张卡片的「头像」按钮指定本地图片。",
+                "清除人物头像", "只删除头像缓存，不影响游戏文件与语音备份。", "清除"))
+        {
+            return;
+        }
+
+        try
+        {
+            int removed = 0;
+            if (Directory.Exists(_manager.AvatarDirectory))
+            {
+                foreach (var file in Directory.EnumerateFiles(_manager.AvatarDirectory))
+                {
+                    File.Delete(file);
+                    removed++;
+                }
+            }
+
+            // 清掉内存里已解码的缓存，避免旧图继续显示
+            VoiceCharacterCard.ClearAvatarCache();
+
+            Refresh();
+            AvatarHintText = $"人物头像：已清除 {removed} 个本地头像，可重新下载或手动指定";
+            StatusText = AvatarHintText;
+        }
+        catch (Exception ex)
+        {
+            _services.Dialogs.Error("清除头像失败：" + ex.Message, "清除人物头像");
         }
     }
 

@@ -175,6 +175,9 @@
                                     FontSize="12" Command="{Binding OpenBackupsFolderCommand}" />
                             <Button Style="{StaticResource Button.Ghost}" Content="📂 打开数据目录" Margin="6,0,0,0" Padding="10,4"
                                     FontSize="12" Command="{Binding OpenDataFolderCommand}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="🗑 清除头像缓存" Margin="6,0,0,0" Padding="10,4"
+                                    FontSize="12" Command="{Binding ClearAvatarsCommand}"
+                                    ToolTip="删除本机已缓存的头像图片（抓错了用这个清掉再重下）" />
                             <Button Style="{StaticResource Button.Ghost}" Content="🖼 头像目录" Margin="6,0,0,0" Padding="10,4"
                                     FontSize="12" Command="{Binding OpenAvatarsFolderCommand}"
                                     ToolTip="把角色头像命名为代号（如 mechanic.png）放进该目录即可显示人物缩略图" />
