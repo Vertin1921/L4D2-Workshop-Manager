@@ -253,8 +253,61 @@ public partial class App : Application
                                            a.Equals("/s", StringComparison.OrdinalIgnoreCase));
                 var removeData = args.Any(a => a.Equals("--removedata", StringComparison.OrdinalIgnoreCase));
 
-                // 程序所在目录即安装目录
-                var installDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+                // 自我复制到临时目录后再卸载：
+                // Windows 不允许运行中的 exe 删掉自己的文件，所以在程序目录里直接卸载时，
+                // Uninstall.exe（以及它加载的几个 DLL）只能登记为"重启后清理"。
+                // 复制到 %TEMP% 运行后，程序目录里那份就不是运行中的映像，可以一次删干净。
+                // 只对"自包含"的卸载程序这么做（体积远大于主程序）；主程序小副本离不开同目录运行库。
+                if (!args.Any(a => a.Equals("--from-temp", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var selfPath = Environment.ProcessPath;
+
+                    if (!string.IsNullOrWhiteSpace(selfPath) && File.Exists(selfPath))
+                    {
+                        var selfLength = new FileInfo(selfPath).Length;
+
+                        if (selfLength > 8L * 1024 * 1024)
+                        {
+                            try
+                            {
+                                var targetArg = args.FirstOrDefault(a => a.StartsWith("--dir=", StringComparison.OrdinalIgnoreCase));
+                                var installPath = targetArg != null
+                                    ? Path.GetFullPath(targetArg.Substring("--dir=".Length).Trim('"'))
+                                    : AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+
+                                var tempCopy = Path.Combine(
+                                    Path.GetTempPath(),
+                                    "L4D2MM-Uninstall-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".exe");
+
+                                File.Copy(selfPath, tempCopy, overwrite: true);
+
+                                var tempArgs = new List<string> { "--uninstall", "--from-temp", "--dir=" + installPath };
+                                if (silent) tempArgs.Add("--silent");
+                                if (removeData) tempArgs.Add("--removedata");
+
+                                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tempCopy)
+                                {
+                                    UseShellExecute = true,
+                                    Arguments = string.Join(" ", tempArgs.Select(a => a.Contains(' ') ? "\"" + a + "\"" : a)),
+                                });
+
+                                report.AppendLine("已从临时目录启动卸载程序（这样程序目录里的文件能一次删干净）。");
+                                exitCode = 0;
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                report.AppendLine("复制到临时目录失败，改为原地卸载：" + ex.Message);
+                            }
+                        }
+                    }
+                }
+
+                // 程序所在目录即安装目录；从临时目录运行时由 --dir= 显式传入
+                var dirArgument = args.FirstOrDefault(a => a.StartsWith("--dir=", StringComparison.OrdinalIgnoreCase));
+                var installDirectory = dirArgument != null
+                    ? Path.GetFullPath(dirArgument.Substring("--dir=".Length).Trim('"'))
+                    : AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
                 // 需要管理员权限时先自提升（例如装在 Program Files 下）。
                 // 只在"目录不可写"且当前未提权时才弹 UAC，用户目录下不会打扰用户。
@@ -347,6 +400,13 @@ public partial class App : Application
                     }
 
                     if (uninstallFailed) exitCode = 1;
+
+                    // 从临时目录运行时：把自己（%TEMP% 里的临时副本）登记为重启后删除，避免留下大文件
+                    if (args.Any(a => a.Equals("--from-temp", StringComparison.OrdinalIgnoreCase)) &&
+                        !string.IsNullOrWhiteSpace(Environment.ProcessPath))
+                    {
+                        AppDeployment.RegisterDeleteOnReboot(Environment.ProcessPath);
+                    }
 
                     report.AppendLine("卸载完成。");
                     report.AppendLine(outcome.Summary);
