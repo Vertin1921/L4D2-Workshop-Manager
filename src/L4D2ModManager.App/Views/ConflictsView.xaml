@@ -15,32 +15,43 @@
 
         <Border Grid.Row="0" Style="{StaticResource Card}" Padding="12,10" Margin="0,0,0,10">
             <Grid>
-                <StackPanel>
-                    <TextBlock Text="{Binding SummaryText}" Style="{StaticResource Text.Body}" FontWeight="SemiBold" />
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,14,0">
+                    <TextBlock Text="{Binding SummaryText}" Style="{StaticResource Text.Body}" FontWeight="SemiBold"
+                               TextWrapping="Wrap" />
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                         <TextBlock Text="{Binding ScannedText}" Style="{StaticResource Text.Muted}" />
                         <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Muted}" Margin="12,0,0,0"
-                                   TextTrimming="CharacterEllipsis" MaxWidth="620" />
+                                   TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Grid Width="240" Margin="0,0,8,0">
-                        <TextBox Style="{StaticResource TextBox.Dark}" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged, Delay=150}" />
-                        <TextBlock Text="🔍 过滤文件 / Mod 名称" Style="{StaticResource Text.Muted}" Margin="12,0,0,0"
-                                   VerticalAlignment="Center" IsHitTestVisible="False"
-                                   Visibility="{Binding FilterText, Converter={StaticResource NullToVisibility}, ConverterParameter=Invert}" />
-                    </Grid>
-                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="只看资源覆盖" VerticalAlignment="Center"
-                              ToolTip="模型 / 材质 / 音频 / 地图等会直接互相覆盖的文件（影响最大）"
-                              IsChecked="{Binding ShowOnlyHighSeverity}" Margin="0,0,10,0" />
-                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="只看同时启用" VerticalAlignment="Center"
-                              ToolTip="当前真正会互相覆盖的冲突"
-                              IsChecked="{Binding ShowOnlyActive}" Margin="0,0,10,0" />
-                    <CheckBox Style="{StaticResource CheckBox.Dark}" Content="显示内容相同项" VerticalAlignment="Center"
-                              ToolTip="CRC32 完全一致的文件：内容一模一样，只是重复打包，不会互相覆盖（默认隐藏）"
-                              IsChecked="{Binding ShowIdenticalContent}" Margin="0,0,10,0" />
-                    <Button Style="{StaticResource Button.Primary}" Content="🔍 开始检测" Command="{Binding DetectCommand}" />
+                <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" MinWidth="250">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Grid Width="200" Margin="0,0,8,0">
+                            <TextBox Style="{StaticResource TextBox.Dark}" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged, Delay=150}" />
+                            <TextBlock Text="🔍 过滤文件 / Mod 名称" Style="{StaticResource Text.Muted}" Margin="12,0,0,0"
+                                       VerticalAlignment="Center" IsHitTestVisible="False"
+                                       Visibility="{Binding FilterText, Converter={StaticResource NullToVisibility}, ConverterParameter=Invert}" />
+                        </Grid>
+                        <Button Style="{StaticResource Button.Primary}" Content="🔍 开始检测" Command="{Binding DetectCommand}" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                        <CheckBox Style="{StaticResource CheckBox.Dark}" Content="只看资源覆盖" VerticalAlignment="Center"
+                                  ToolTip="模型 / 材质 / 音频 / 地图等会直接互相覆盖的文件（影响最大）"
+                                  IsChecked="{Binding ShowOnlyHighSeverity}" Margin="0,0,10,0" />
+                        <CheckBox Style="{StaticResource CheckBox.Dark}" Content="只看同时启用" VerticalAlignment="Center"
+                                  ToolTip="当前真正会互相覆盖的冲突"
+                                  IsChecked="{Binding ShowOnlyActive}" Margin="0,0,10,0" />
+                        <CheckBox Style="{StaticResource CheckBox.Dark}" Content="显示内容相同项" VerticalAlignment="Center"
+                                  ToolTip="CRC32 完全一致的文件：内容一模一样，只是重复打包，不会互相覆盖（默认隐藏）"
+                                  IsChecked="{Binding ShowIdenticalContent}" />
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </Border>

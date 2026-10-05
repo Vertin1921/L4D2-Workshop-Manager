@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="L4D2ModManager.App.Views.VoiceView"
+<UserControl x:Class="L4D2ModManager.App.Views.VoiceView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -129,17 +129,22 @@
         <!-- ============ 拖放提示 + 状态 ============ -->
         <Border Grid.Row="1" Style="{StaticResource Card.Static}" Padding="14,10" Margin="0,0,0,10">
             <Grid>
-                <StackPanel>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" Margin="0,0,14,0">
                     <TextBlock Text="{Binding DragHintText}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" />
                     <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
                     <TextBlock Style="{StaticResource Text.Muted}" Margin="0,6,0,0" TextWrapping="Wrap"
                                Text="安装方式：① .vpk 语音包 → 放进 left4dead2\addons 作为 addon 加载（不覆盖游戏内的语音文件）；② 散装文件夹（sound\player\survivor\voice\…）→ 先 ZIP 备份原版，再用你的文件覆盖游戏语音目录。" />
                 </StackPanel>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <StackPanel Grid.Column="1" Orientation="Vertical" VerticalAlignment="Center" MinWidth="205">
                     <Button Style="{StaticResource Button.Primary}" Content="📂  选择 Mod 文件（.vpk）"
                             Command="{Binding ChooseModFileCommand}" />
-                    <Button Style="{StaticResource Button.Ghost}" Content="📁  选择 Mod 文件夹" Margin="8,0,0,0"
+                    <Button Style="{StaticResource Button.Ghost}" Content="📁  选择 Mod 文件夹" Margin="0,8,0,0"
                             Command="{Binding ChooseModFolderCommand}" />
                 </StackPanel>
             </Grid>
