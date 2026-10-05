@@ -7,6 +7,9 @@ public partial class MainWindow : Window
 {
     private CommandLineOptions _options = new();
     private bool _uninstallMode;
+
+    /// <summary>true = 本次是以 Uninstall.exe 启动（显示"修复/程序目录"措辞）；false = 安装程序本体（原措辞）。</summary>
+    private bool _isUninstallerBinary;
     private bool _finished;
     private bool _busy;
 
@@ -75,7 +78,8 @@ public partial class MainWindow : Window
         _options = options;
         // 以 Uninstall 开头的文件名启动时（打包成 Uninstall.exe），直接进入卸载界面；
         // 安装程序清单是 requireAdministrator，因此双击即自动获得管理员权限。
-        _uninstallMode = options.Uninstall || L4D2ModManager.Core.Services.Deployment.AppDeployment.IsUninstallerProcess();
+        _isUninstallerBinary = L4D2ModManager.Core.Services.Deployment.AppDeployment.IsUninstallerProcess();
+        _uninstallMode = options.Uninstall || _isUninstallerBinary;
 
         if (_uninstallMode)
         {
@@ -93,7 +97,7 @@ public partial class MainWindow : Window
             {
                 _updateMode = true;
                 PathBox.Text = installedPath;
-                HeaderText.Text = "修复 " + Installer.AppShortName;
+                HeaderText.Text = (_isUninstallerBinary ? "修复 " : "更新 ") + Installer.AppShortName;
                 UninstallShortcutButton.Visibility = Visibility.Visible;
                 SubHeaderText.Text = $"检测到已安装版本 {installedVersion}，将直接覆盖修复到 " +
                                      L4D2ModManager.Core.Services.Deployment.AppDeployment.Version;
@@ -122,7 +126,7 @@ public partial class MainWindow : Window
             {
                 StatusText.Text = $"覆盖修复：{PathBox.Text}\n" +
                                   "安装时会自动关闭正在运行的程序；你的 Mod、配置与数据库都会保留。";
-                ActionButton.Content = "修复";
+                ActionButton.Content = _isUninstallerBinary ? "修复" : "更新";
             }
             else
             {
