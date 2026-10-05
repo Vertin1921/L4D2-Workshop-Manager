@@ -220,7 +220,7 @@ public static class AppDeployment
         }
     }
 
-    /// <summary>当前进程是否是通过"卸载程序"启动的（文件名以 Uninstall 开头）。</summary>
+    /// <summary>当前进程是否通过"卸载程序"启动的（文件名以 Uninstall 开头）。</summary>
     public static bool IsUninstallerProcess(string? executablePath = null)
     {
         try
@@ -230,6 +230,25 @@ public static class AppDeployment
 
             var name = Path.GetFileNameWithoutExtension(path);
             return name.StartsWith("uninstall", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>目录是否可写（用探测文件判断；不可写通常意味着需要管理员权限）。</summary>
+    public static bool IsDirectoryWritable(string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) return true;
+
+        var probe = Path.Combine(directory, ".l4d2mm-write-probe");
+
+        try
+        {
+            File.WriteAllText(probe, "probe");
+            File.Delete(probe);
+            return true;
         }
         catch
         {

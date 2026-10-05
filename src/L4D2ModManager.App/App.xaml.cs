@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
@@ -246,6 +246,37 @@ public partial class App : Application
                 // 程序所在目录即安装目录
                 var installDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
 
+                // 需要管理员权限时先自提升（例如装在 Program Files 下）。
+                // 只在"目录不可写"且当前未提权时才弹 UAC，用户目录下不会打扰用户。
+                if (!AppDeployment.IsElevated && !AppDeployment.IsDirectoryWritable(installDirectory))
+                {
+                    var elevatedArgs = new List<string> { "--uninstall" };
+                    if (silent) elevatedArgs.Add("--silent");
+                    if (removeData) elevatedArgs.Add("--removedata");
+
+                    var self = Environment.ProcessPath;
+                    string? elevateError = null;
+
+                    if (!string.IsNullOrWhiteSpace(self) &&
+                        AppDeployment.TryRestartElevated(self, elevatedArgs, out elevateError))
+                    {
+                        report.AppendLine("安装目录需要管理员权限，已请求以管理员身份重新启动卸载程序。");
+                        exitCode = 0;
+                        break;
+                    }
+
+                    report.AppendLine("未能获取管理员权限，将继续尝试卸载（部分文件可能无法立即删除）：" + elevateError);
+
+                    if (!silent)
+                    {
+                        System.Windows.MessageBox.Show(
+                            "安装目录位于受保护位置（例如 Program Files），需要管理员权限才能彻底删除。\r\n\r\n" +
+                            "刚才的提权请求被取消或失败，将尝试继续卸载；" +
+                            "建议右键卸载程序选择「以管理员身份运行」再试一次。",
+                            "需要管理员权限", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+
                 if (!silent)
                 {
                     var answer = System.Windows.MessageBox.Show(
@@ -267,7 +298,46 @@ public partial class App : Application
 
                 try
                 {
-                    var outcome = AppDeployment.UninstallAsync(installDirectory, removeData).GetAwaiter().GetResult();
+                    UninstallOutcome outcome = new(0, 0);
+                    var uninstallFailed = false;
+
+                    if (silent)
+                    {
+                        outcome = AppDeployment.UninstallAsync(installDirectory, removeData).GetAwaiter().GetResult();
+                    }
+                    else
+                    {
+                        // 图形模式：显示独立进度窗口，边卸载边看进度
+                        var progressWindow = new Dialogs.ProgressWindow("卸载 " + AppDeployment.AppShortName);
+                        var progress = new Progress<UninstallProgress>(
+                            p => progressWindow.Report(p.Percent, p.Message));
+
+                        progressWindow.Loaded += (_, _) =>
+                        {
+                            Task.Run(() =>
+                            {
+                                try
+                                {
+                                    outcome = AppDeployment.UninstallAsync(installDirectory, removeData, progress)
+                                        .GetAwaiter().GetResult();
+                                }
+                                catch (Exception ex)
+                                {
+                                    report.AppendLine("卸载失败：" + ex.Message);
+                                    uninstallFailed = true;
+                                }
+                                finally
+                                {
+                                    progressWindow.RequestClose();
+                                }
+                            });
+                        };
+
+                        progressWindow.ShowDialog();
+                    }
+
+                    if (uninstallFailed) exitCode = 1;
+
                     report.AppendLine("卸载完成。");
                     report.AppendLine(outcome.Summary);
                     report.AppendLine($"安装目录：{installDirectory}");
