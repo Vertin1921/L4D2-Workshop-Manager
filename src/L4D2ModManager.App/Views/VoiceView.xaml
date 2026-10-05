@@ -75,6 +75,10 @@
                                     Margin="0,0,6,6"
                                     Command="{Binding DataContext.OpenDlcFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                     CommandParameter="{Binding}" ToolTip="打开 DLC 里的语音目录" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="头像" Padding="12,5" FontSize="12"
+                                    Margin="0,0,6,6"
+                                    Command="{Binding DataContext.SetAvatarCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}" ToolTip="选择本地图片作为该角色的头像（网络找不到时用这个）" />
                             <Button Style="{StaticResource Button.Danger}" Content="删除 Mod" Padding="12,5" FontSize="12"
                                     Margin="0,0,0,6"
                                     Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"

@@ -44,7 +44,10 @@ public sealed class VoiceCharacterCard : ObservableObject
 
     public bool HasAvatar => !string.IsNullOrWhiteSpace(AvatarPath) && File.Exists(AvatarPath);
 
-    /// <summary>头像图片（加载失败时退回首字母圆牌）。</summary>
+    /// <summary>已解码头像缓存（键含文件修改时间，图片换了会自动失效）。</summary>
+    private static readonly Dictionary<string, ImageSource> AvatarCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>头像图片（加载失败时退回首字母圆牌）。解码结果会缓存，避免每次刷新都重新读盘。</summary>
     public ImageSource? AvatarImage
     {
         get
@@ -53,13 +56,29 @@ public sealed class VoiceCharacterCard : ObservableObject
 
             try
             {
+                var path = AvatarPath!;
+                var key = path + "|" + File.GetLastWriteTimeUtc(path).Ticks;
+
+                lock (AvatarCache)
+                {
+                    if (AvatarCache.TryGetValue(key, out var cached)) return cached;
+                }
+
                 var image = new BitmapImage();
                 image.BeginInit();
                 image.CacheOption = BitmapCacheOption.OnLoad;
                 image.DecodePixelWidth = 96;
-                image.UriSource = new Uri(AvatarPath!, UriKind.Absolute);
+                image.UriSource = new Uri(path, UriKind.Absolute);
                 image.EndInit();
                 image.Freeze();
+
+                lock (AvatarCache)
+                {
+                    // 只保留最近用到的若干张，避免长期运行占用内存
+                    if (AvatarCache.Count > 64) AvatarCache.Clear();
+                    AvatarCache[key] = image;
+                }
+
                 return image;
             }
             catch
@@ -159,6 +178,7 @@ public sealed class VoiceViewModel : ObservableObject
         UninstallCommand = new AsyncRelayCommand(parameter => UninstallAsync(parameter as VoiceCharacterCard), _ => !IsBusy, ex => Report("删除失败", ex));
         OpenVoiceFolderCommand = new RelayCommand(parameter => OpenVoiceFolder(parameter as VoiceCharacterCard));
         OpenDlcFolderCommand = new RelayCommand(parameter => OpenDlcFolder(parameter as VoiceCharacterCard));
+        SetAvatarCommand = new RelayCommand(parameter => SetAvatar(parameter as VoiceCharacterCard));
 
         BrowseExeCommand = new RelayCommand(_ => BrowseExe());
         AutoDetectCommand = new RelayCommand(_ => DetectGamePath(force: true));
@@ -209,6 +229,9 @@ public sealed class VoiceViewModel : ObservableObject
     public RelayCommand OpenVoiceFolderCommand { get; }
 
     public RelayCommand OpenDlcFolderCommand { get; }
+
+    /// <summary>为某个角色手动指定本地头像图片（网络上找不到时用这个）。</summary>
+    public RelayCommand SetAvatarCommand { get; }
 
     public RelayCommand BrowseExeCommand { get; }
 
@@ -845,7 +868,7 @@ public sealed class VoiceViewModel : ObservableObject
         try
         {
             var progress = new Progress<string>(message => StatusText = message);
-            var results = await Task.Run(() => AvatarDownloader.DownloadAllAsync(_manager, false, progress)).ConfigureAwait(true);
+            var results = await Task.Run(() => AvatarDownloader.DownloadAllAsync(_manager, overwrite: true, progress)).ConfigureAwait(true);
 
             var ok = results.Count(r => r.Success && !r.Message.Contains("跳过", StringComparison.Ordinal));
             var skipped = results.Count(r => r.Message.Contains("跳过", StringComparison.Ordinal));
@@ -861,6 +884,44 @@ public sealed class VoiceViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    private void SetAvatar(VoiceCharacterCard? card)
+    {
+        if (card == null) return;
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = $"选择 {card.EnglishName} 的头像图片",
+            Filter = "图片 (*.png;*.jpg;*.jpeg;*.webp)|*.png;*.jpg;*.jpeg;*.webp|所有文件 (*.*)|*.*",
+            CheckFileExists = true,
+        };
+
+        if (dialog.ShowDialog() != true) return;
+
+        try
+        {
+            Directory.CreateDirectory(_manager.AvatarDirectory);
+
+            var extension = Path.GetExtension(dialog.FileName).ToLowerInvariant();
+            foreach (var other in new[] { ".png", ".jpg", ".jpeg", ".webp" })
+            {
+                var existing = Path.Combine(_manager.AvatarDirectory, card.Codename + other);
+                if (File.Exists(existing)) File.Delete(existing);
+            }
+
+            File.Copy(dialog.FileName, Path.Combine(_manager.AvatarDirectory, card.Codename + extension), overwrite: true);
+
+            // 让卡片重新读取图片（缓存键带文件时间，会自动失效）
+            Refresh();
+            AvatarHintText = $"人物头像：{card.EnglishName} 已使用本地图片（{Path.GetFileName(dialog.FileName)}）";
+            StatusText = $"已设置 {card.EnglishName} 的头像";
+            Log.Info($"[语音头像] {card.EnglishName} 使用本地图片：{dialog.FileName}");
+        }
+        catch (Exception ex)
+        {
+            _services.Dialogs.Error("设置头像失败：" + ex.Message, "设置头像");
         }
     }
 
