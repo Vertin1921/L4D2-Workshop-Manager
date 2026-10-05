@@ -1,10 +1,35 @@
-# Left 4 Dead 2 Mod Manager（L4D2 专用 Mod 管理器）
+﻿# Left 4 Dead 2 Mod Manager（L4D2 专用 Mod 管理器）
 
 > Windows 10 / 11 x64 桌面应用 · C# · .NET 8 · WPF · 暗黑（L4D2 黑 + 暗红）× macOS 风格界面
 
 一个专注于《Left 4 Dead 2》的 Mod 管理器：扫描 `addons` 与创意工坊目录、读取 VPK 内的
 `addoninfo.txt`、按后缀启用/禁用、自动分类、冲突检测、配置方案一键切换、程序内浏览并下载创意工坊
 Mod、缩略图、拖放安装，全部数据用 JSON 保存。
+
+
+---
+
+## ⚠️ 关于杀毒软件报毒 / SmartScreen 提示（重要，请先读）
+
+**本程序会被部分杀毒软件报毒、并被 Windows SmartScreen 拦截，这是误报。** 原因很具体：
+
+| 触发误报的行为 | 为什么这样做 |
+| --- | --- |
+| 单文件自包含安装程序（启动时把自身解压到 `%TEMP%`） | 让用户**无需预装 .NET** 就能安装，体积换便利 |
+| 程序清单请求管理员权限（`requireAdministrator`） | 装在 `Program Files` 的 Steam 需要管理员权限才能重命名/删除 Mod |
+| 卸载程序会**把自己复制到 `%TEMP%` 再执行** | Windows 不允许运行中的 exe 删除自己；这样做才能把程序目录**彻底清空**（否则会残留 `Uninstall.exe`） |
+| 遍历并重命名大量 `.vpk` 文件 | 这就是「启用/禁用 Mod」的实现方式（只改后缀，**绝不修改或删除 VPK 内容**） |
+| 未做商业代码签名 | 购买 CA 代码签名证书需要付费；只有**受信任 CA 的签名**才能让**别人**的电脑不再提示 SmartScreen，自签名证书只在本机有效 |
+
+### 你可以这样做
+
+1. **添加 Defender 排除项**（仓库内 `tools/Add-DefenderExclusion.ps1`，管理员运行即可）；
+2. **解除文件锁定**再解压/运行：右键 → 属性 → 勾选「解除锁定」，或用 `tools/Unblock-Files.ps1`；
+3. **使用文件夹版安装包**（`Setup.exe` + `payload.zip` 同级）——不做自解压，误报概率最低；
+4. **自己编译**：`build/build-release.ps1` 一条命令出安装包（见 `docs/编译说明.md`），本机编译的产物永远不会被标记；
+5. 用 Release 页提供的 **SHA256** 校验下载完整性（`tools/Prepare-Release.ps1` 生成哈希清单）。
+
+> 程序**不会**联网上传任何数据，**不会**修改游戏本体文件（语音替换会先做 ZIP 备份并且需要你确认），所有数据都以 JSON 保存在 `%AppData%\L4D2ModManager`。源码全部在此仓库，可自行审阅与编译。
 
 ---
 
