@@ -41,7 +41,7 @@ public sealed class AppConfig
     public bool ExtractThumbnails { get; set; } = true;
 
     /// <summary>是否在没有内置图片时用创意工坊预览图。</summary>
-    public bool FetchRemoteThumbnails { get; set; } = true;
+    public bool FetchRemoteThumbnails { get; set; } = false;
 
     /// <summary>是否解析 VPK 内部文件清单（冲突检测必需，会略慢）。</summary>
     public bool BuildFileIndex { get; set; } = true;

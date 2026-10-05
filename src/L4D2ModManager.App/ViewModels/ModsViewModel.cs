@@ -710,7 +710,11 @@ public sealed class ModsViewModel : ObservableObject
     public int MissingThumbnailCount => Items.Count(i => !i.HasThumbnail);
 
     /// <summary>供启动流程直接触发自动抓取（静默，不弹确认框）。</summary>
-    public void StartAutoThumbnailFetch() => _ = FetchThumbnailsAsync(silent: true);
+    public void StartAutoThumbnailFetch()
+    {
+        // 按用户要求：不再自动抓取 mod 缩略图（改为只显示分类色条 + 分类徽章）。
+        // 保留方法体，方便以后需要时恢复。
+    }
 
     /// <summary>设置状态栏文字。</summary>
     public void SetStatus(string text) => ProgressText = text;

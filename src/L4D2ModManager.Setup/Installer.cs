@@ -128,6 +128,43 @@ public static class Installer
         return info != null;
     }
 
+    /// <summary>
+    /// 把与安装程序同目录的独立卸载程序（自包含、界面与安装程序一致）放进程序目录；
+    /// 找不到时退回复制主程序小副本（几百 KB，旁边就是运行库，也能直接运行）。
+    /// </summary>
+    private static void CopyPackagedUninstaller(string target)
+    {
+        try
+        {
+            var baseDirectory = AppContext.BaseDirectory;
+            var targetFile = Path.Combine(target, AppDeployment.UninstallerName);
+            var candidates = new[]
+            {
+                Path.Combine(baseDirectory, "Uninstall.exe"),
+                Path.Combine(baseDirectory, "payload", "Uninstall.exe"),
+                Path.Combine(baseDirectory, "..", "Uninstall.exe"),
+            };
+
+            foreach (var candidate in candidates)
+            {
+                string full;
+                try { full = Path.GetFullPath(candidate); } catch { continue; }
+
+                if (!File.Exists(full)) continue;
+                if (string.Equals(full, Path.GetFullPath(targetFile), StringComparison.OrdinalIgnoreCase)) return;
+
+                File.Copy(full, targetFile, overwrite: true);
+                Log.Info($"已放入独立卸载程序：{full} -> {target}");
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"放入独立卸载程序失败（改用主程序副本）：{ex.Message}");
+        }
+
+        AppDeployment.CreateUninstaller(target);
+    }
     /// <summary>从安装载荷（外置 zip 或内嵌资源）生成安装清单。</summary>
     private static void WriteInstallManifest(string target, string? payloadPath)
     {
@@ -246,7 +283,7 @@ public static class Installer
         // 记录安装清单（卸载时只删这些文件，用户的 mod 一律保留）
         WriteInstallManifest(target, payloadPath);
 
-        AppDeployment.CreateUninstaller(target);
+        CopyPackagedUninstaller(target);
         AppDeployment.CreateShortcuts(target, options.StartMenuShortcut, options.DesktopShortcut);
 
         if (options.WriteRegistry)
