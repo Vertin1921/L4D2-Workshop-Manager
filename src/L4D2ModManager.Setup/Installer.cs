@@ -175,9 +175,9 @@ public static class Installer
             : options.TargetDirectory.Trim();
         target = Path.GetFullPath(target);
 
-        // 勾选"创建子目录"时，在所选目录下再建一层（例如 D:\Games → D:\Games\L4D2 Mod Manager）
-        if (options.CreateSubdirectory &&
-            !target.TrimEnd(Path.DirectorySeparatorChar).EndsWith(AppShortName, StringComparison.OrdinalIgnoreCase))
+        // 自动在所选目录下创建子目录（例如选 D:\Games → 实际装到 D:\Games\L4D2 Mod Manager）。
+        // 如果所选目录本身就是程序目录（覆盖更新，或用户直接选了它），则不重复嵌套。
+        if (!target.TrimEnd(Path.DirectorySeparatorChar).EndsWith(AppShortName, StringComparison.OrdinalIgnoreCase))
         {
             target = Path.Combine(target, AppShortName);
         }

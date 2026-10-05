@@ -48,7 +48,6 @@
                     <StackPanel Margin="0,14,0,0">
                         <CheckBox x:Name="DesktopCheck" Content="创建桌面快捷方式" IsChecked="True" />
                         <CheckBox x:Name="StartMenuCheck" Content="创建开始菜单快捷方式" IsChecked="True" />
-                    <CheckBox x:Name="SubdirCheck" Content="在所选目录下创建子目录（L4D2 Mod Manager）" IsChecked="False" />
                         <CheckBox x:Name="LaunchCheck" Content="安装完成后立即启动" IsChecked="True" />
                     </StackPanel>
                 </StackPanel>

@@ -20,9 +20,7 @@ public partial class MainWindow : Window
         // 安装程序启动时把窗口带到最前面一次（不是强制置顶：用户切换窗口后不会一直压在最上面）
         Loaded += (_, _) => BringToFrontOnce();
 
-        // "创建子目录"选项与路径预览
-        SubdirCheck.Checked += (_, _) => UpdateEffectivePath();
-        SubdirCheck.Unchecked += (_, _) => UpdateEffectivePath();
+        // 路径预览（会在所选目录下自动加一层程序目录）
         PathBox.TextChanged += (_, _) => UpdateEffectivePath();
     }
 
@@ -89,9 +87,6 @@ public partial class MainWindow : Window
 
             DesktopCheck.IsChecked = !options.NoDesktopShortcut;
             StartMenuCheck.IsChecked = !options.NoStartMenuShortcut;
-            // 覆盖更新时目录已经确定，不再允许再套一层子目录
-            SubdirCheck.IsChecked = !_updateMode && options.CreateSubdirectory;
-            SubdirCheck.IsEnabled = !_updateMode;
             UpdateEffectivePath();
             LaunchCheck.IsChecked = true;
 
@@ -130,7 +125,8 @@ public partial class MainWindow : Window
                 return;
             }
 
-            if (SubdirCheck.IsChecked == true)
+            // 始终自动加一层程序目录；如果目录本身就是它，就不再重复嵌套
+            if (!path.TrimEnd(Path.DirectorySeparatorChar).EndsWith(Installer.AppShortName, StringComparison.OrdinalIgnoreCase))
             {
                 path = Path.Combine(path, Installer.AppShortName);
             }
@@ -216,7 +212,6 @@ public partial class MainWindow : Window
             var options = new InstallOptions
             {
                 TargetDirectory = target,
-                CreateSubdirectory = SubdirCheck.IsChecked == true,
                 DesktopShortcut = DesktopCheck.IsChecked == true,
                 StartMenuShortcut = StartMenuCheck.IsChecked == true,
                 LaunchAfterInstall = LaunchCheck.IsChecked == true,
