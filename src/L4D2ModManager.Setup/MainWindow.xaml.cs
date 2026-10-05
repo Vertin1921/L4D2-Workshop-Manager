@@ -81,6 +81,13 @@ public partial class MainWindow : Window
         _isUninstallerBinary = L4D2ModManager.Core.Services.Deployment.AppDeployment.IsUninstallerProcess();
         _uninstallMode = options.Uninstall || _isUninstallerBinary;
 
+        // 没有内置载荷 => 本文件本身就是"独立卸载程序"（程序目录里那份就是它）。
+        // 此时必须直接进卸载界面，而不是弹"此安装包没有内置程序文件，无法安装"。
+        if (!_uninstallMode && !Installer.PayloadAvailable)
+        {
+            _uninstallMode = true;
+        }
+
         if (_uninstallMode)
         {
             EnterUninstallMode(options.InstallDirectory);

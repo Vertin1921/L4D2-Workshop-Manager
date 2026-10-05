@@ -558,6 +558,53 @@ public static class AppDeployment
         }
     }
 
+    /// <summary>
+    /// 清理卸载过程在 %TEMP% 留下的垃圾：
+    ///   · L4D2MM-Uninstall-leftover 目录（被改名挪出的旧文件，重启前一直占着空间）
+    ///   · 之前版本复制过去的临时卸载程序副本（每份上百 MB）
+    /// 只在能够删除时删除，失败一律忽略（正在运行的那个不会被删掉）。
+    /// </summary>
+    public static void CleanupUninstallLeftovers()
+    {
+        try
+        {
+            var leftover = Path.Combine(Path.GetTempPath(), "L4D2MM-Uninstall-leftover");
+            if (Directory.Exists(leftover))
+            {
+                foreach (var file in Directory.EnumerateFiles(leftover))
+                {
+                    try { File.SetAttributes(file, FileAttributes.Normal); File.Delete(file); }
+                    catch { RegisterDeleteOnReboot(file); }
+                }
+
+                try { if (!Directory.EnumerateFileSystemEntries(leftover).Any()) Directory.Delete(leftover); } catch { }
+            }
+
+            var temp = Path.GetTempPath();
+            foreach (var pattern in new[] { "Uninstall-*.exe", "*_Uninstall.exe" })
+            {
+                foreach (var file in Directory.EnumerateFiles(temp, pattern))
+                {
+                    try
+                    {
+                        if (string.Equals(Path.GetFullPath(file), Path.GetFullPath(Environment.ProcessPath ?? string.Empty), StringComparison.OrdinalIgnoreCase))
+                            continue;
+
+                        File.Delete(file);
+                        Log.Info($"已清理临时卸载副本：{Path.GetFileName(file)}");
+                    }
+                    catch
+                    {
+                        // 被占用（正在运行）或权限不足：留给重启后清理
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"清理临时文件失败：{ex.Message}");
+        }
+    }
     /// <summary>把被占用的文件改名挪到临时目录（成功返回新路径），用于清理"运行中的"卸载程序与已加载 DLL。</summary>
     private static string? TryRelocateLockedFile(string file)
     {

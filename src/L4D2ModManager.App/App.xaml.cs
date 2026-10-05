@@ -26,6 +26,9 @@ public partial class App : Application
         // 只要发现它与当前程序不是同一份，就用当前程序覆盖它。
         SynchronizeUninstaller();
 
+        // 顺手清掉上次卸载遗留在 %TEMP% 的文件（每份可能有上百 MB）
+        AppDeployment.CleanupUninstallLeftovers();
+
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             Log.Error("未处理异常", args.ExceptionObject as Exception);
