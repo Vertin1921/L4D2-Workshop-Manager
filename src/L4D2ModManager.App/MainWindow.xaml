@@ -1,4 +1,4 @@
-<Window x:Class="L4D2ModManager.App.MainWindow"
+﻿<Window x:Class="L4D2ModManager.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
@@ -70,6 +70,9 @@
                                     ToolTip="以 -insecure 启动：关闭 VAC，联机 Mod / 测试用，无法进入官方服" />
                             <TextBlock Text="{Binding LaunchStatusText}" Style="{StaticResource Text.Muted}"
                                        Margin="2,0,0,8" TextWrapping="Wrap" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="🔄  重启游戏" Padding="12,8" Margin="0,0,0,6"
+                                    Command="{Binding RestartGameCommand}"
+                                    ToolTip="关闭正在运行的 L4D2 并重新启动（改完语音后用它让游戏重新加载）" />
                             <Button Style="{StaticResource Button.Primary}" Command="{Binding ScanAllCommand}"
                                     Content="🔄  重新扫描" Padding="12,9" />
                             <TextBlock Text="{Binding ModSummary}" Style="{StaticResource Text.Muted}"

@@ -1196,11 +1196,21 @@ internal static class Program
         Check.Equal("mechanic", vpkSource.Character?.Codename ?? string.Empty, "应识别为 Ellis");
         Check.Equal(2, vpkSource.TotalVoiceFiles, "只应处理语音文件（忽略 models）");
 
+        var addonsDirectory = Path.Combine(gameRoot, "left4dead2", "addons");
+        Directory.CreateDirectory(addonsDirectory);
+
         var vpkInstall = manager.Install(gameRoot, vpkSource, ellis, "EllisVoice.vpk");
         Check.True(vpkInstall.Success, "VPK 安装应成功：" + vpkInstall.Message);
-        Check.Equal("FROM_VPK", File.ReadAllText(Path.Combine(mechanicDir, "alert.wav")), "VPK 内容应写入");
+        Check.True(File.Exists(Path.Combine(addonsDirectory, "EllisVoice.vpk")), "VPK 应被放进 addons 目录");
+        Check.Equal("ORIGINAL", File.ReadAllText(Path.Combine(mechanicDir, "alert.wav")),
+            "VPK 安装绝不能覆盖游戏内的语音文件");
         Check.False(File.Exists(Path.Combine(gameRoot, "left4dead2", "models", "weapons", "v_rif_m16.mdl")),
             "绝不能写入非语音资源");
+
+        // 删除这种"纯新增"的 Mod：应只移除 addons 里的 VPK
+        var removeVpk = manager.Uninstall(gameRoot, ellis);
+        Check.True(removeVpk.Success, "删除 VPK 语音 Mod 应成功：" + removeVpk.Message);
+        Check.False(File.Exists(Path.Combine(addonsDirectory, "EllisVoice.vpk")), "addons 里的 VPK 应被移除");
 
         // ⑦ 恢复
         var installRecord = manager.LoadRecords().Last(r =>

@@ -125,6 +125,8 @@
                 <StackPanel>
                     <TextBlock Text="{Binding DragHintText}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" />
                     <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                    <TextBlock Style="{StaticResource Text.Muted}" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Text="安装方式：① .vpk 语音包 → 放进 left4dead2\addons 作为 addon 加载（不覆盖游戏内的语音文件）；② 散装文件夹（sound\player\survivor\voice\…）→ 先 ZIP 备份原版，再用你的文件覆盖游戏语音目录。" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">

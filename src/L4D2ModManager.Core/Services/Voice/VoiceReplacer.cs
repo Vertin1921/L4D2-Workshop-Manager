@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Text.Json;
 using L4D2ModManager.Core.Services.Steam;
 using L4D2ModManager.Core.Services.Vpk;
@@ -943,6 +943,11 @@ public sealed class VoiceManager
         if (!source.Success || source.Files.Count == 0)
             return VoiceOperationResult.Fail(source.Error ?? "语音 Mod 内容为空。", log);
 
+        // VPK 语音包：作为 addon 放进 left4dead2\addons（L4D2 加载语音 addon 的标准方式），
+        // 不覆盖、不修改游戏内的语音文件；只有散装文件夹才走"备份后覆盖语音目录"的流程。
+        if (source.FromVpk)
+            return InstallVpkAddon(gameRoot, source, info, modName, progress, log);
+
         Step($"检测 {info.DisplayName} 语音目录…");
         var targets = FindVoiceDirectories(gameRoot, info);
         if (targets.Count == 0)
@@ -1118,6 +1123,172 @@ public sealed class VoiceManager
         }
     }
 
+    // ------------------------------------------------------------------ 安装（VPK → addons）
+
+    /// <summary>
+    /// 把 VPK 语音包放进 &lt;游戏&gt;\left4dead2\addons。
+    /// 这是 L4D2 加载语音 addon 的标准方式：不修改游戏内的语音文件，删除 = 移除这个 VPK。
+    /// 如果 addons 里已有同名文件，会先把它打包备份到 Backups 目录再覆盖。
+    /// </summary>
+    private VoiceOperationResult InstallVpkAddon(
+        string gameRoot,
+        VoiceSourceInfo source,
+        VoiceCharacterInfo info,
+        string modName,
+        IProgress<string>? progress,
+        List<string> log)
+    {
+        void Step(string message)
+        {
+            log.Add(message);
+            Log.Info($"[语音安装] {message}");
+            progress?.Report(message);
+        }
+
+        try
+        {
+            var addonsDirectory = Path.Combine(gameRoot, "left4dead2", "addons");
+            if (!Directory.Exists(addonsDirectory))
+            {
+                return VoiceOperationResult.Fail(
+                    $"找不到 addons 目录：{addonsDirectory}\r\n请确认游戏文件完整（或先用 Steam 启动一次游戏）。", log);
+            }
+
+            var fileName = SanitizeFileName(
+                Path.GetFileName(modName).EndsWith(".vpk", StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetFileName(modName)
+                    : Path.GetFileName(modName) + ".vpk");
+
+            var destination = Path.Combine(addonsDirectory, fileName);
+            var relativePath = $"left4dead2/addons/{fileName}";
+
+            Step($"目标：{destination}");
+
+            string backupZip = string.Empty;
+            if (File.Exists(destination))
+            {
+                Step("addons 目录里已有同名 VPK，先备份它…");
+                backupZip = BackupAddonFile(destination, info, fileName, log) ?? string.Empty;
+
+                if (string.IsNullOrEmpty(backupZip))
+                {
+                    return VoiceOperationResult.Fail(
+                        "同名 addons 文件备份失败，为保护游戏文件，本次安装已取消。", log);
+                }
+            }
+
+            File.Copy(source.SourcePath, destination, overwrite: true);
+
+            var size = new FileInfo(destination).Length;
+            Step($"✓ 已放入 addons：{fileName}（{size / 1024.0 / 1024.0:0.0} MB，含 {source.TotalVoiceFiles} 个语音文件）");
+            Step("VPK 作为 addon 由游戏加载，没有修改任何游戏内语音文件");
+
+            SaveRecord(new VoiceInstallRecord
+            {
+                CharacterCodename = info.Codename,
+                CharacterName = info.EnglishName,
+                ModName = fileName,
+                InstalledAtLocal = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                FileCount = source.TotalVoiceFiles,
+                BackupZip = backupZip,
+                TargetFolders = new List<string> { "left4dead2/addons" },
+                AddedFiles = new List<string> { relativePath },
+                Status = VoiceInstallRecord.StatusInstalled,
+            });
+
+            Step("已写入安装记录（Data\\installed_mods.json）");
+            Step("安装完成");
+            Step($"请使用 {RebuildCacheCommand} 重建声音缓存");
+
+            return new VoiceOperationResult(true,
+                $"已把 {fileName} 放进 addons（角色 {info.DisplayName}，{source.TotalVoiceFiles} 个语音文件）", log)
+            {
+                BackupZip = string.IsNullOrEmpty(backupZip) ? null : backupZip,
+                Character = info,
+            };
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return VoiceOperationResult.Fail(
+                "没有权限写入 addons 目录（Steam 若在 Program Files，请以管理员身份运行本程序）。\r\n" + ex.Message, log);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("安装 VPK 语音包失败", ex);
+            return VoiceOperationResult.Fail("安装失败：" + ex.Message, log);
+        }
+    }
+
+    /// <summary>把 addons 里已存在的同名 VPK 打包备份（带清单，保证验证能通过）。</summary>
+    private string? BackupAddonFile(string file, VoiceCharacterInfo info, string fileName, List<string> log)
+    {
+        try
+        {
+            Directory.CreateDirectory(BackupsDirectory);
+
+            var baseName = $"{info.EnglishName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_addons";
+            var zipPath = Path.Combine(BackupsDirectory, baseName + ".zip");
+            int suffix = 2;
+            while (File.Exists(zipPath))
+            {
+                zipPath = Path.Combine(BackupsDirectory, $"{baseName}_{suffix++}.zip");
+            }
+
+            using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                zip.CreateEntryFromFile(file, $"left4dead2/addons/{fileName}", CompressionLevel.Optimal);
+
+                var manifest = new VoiceBackupManifest
+                {
+                    CharacterCodename = info.Codename,
+                    CharacterName = info.EnglishName,
+                    CreatedLocal = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    TargetFolders = new List<string> { "left4dead2/addons" },
+                    SavedFiles = new List<string> { $"left4dead2/addons/{fileName}" },
+                    AddedFiles = new List<string>(),
+                };
+
+                var entry = zip.CreateEntry(ManifestEntryName, CompressionLevel.Optimal);
+                using var writer = new StreamWriter(entry.Open());
+                writer.Write(JsonSerializer.Serialize(manifest, _json));
+            }
+
+            var verify = VerifyBackup(zipPath);
+            if (!verify.Success)
+            {
+                try
+                {
+                    File.Delete(zipPath);
+                }
+                catch
+                {
+                    // 忽略
+                }
+
+                log.Add("备份验证未通过：" + verify.Message);
+                return null;
+            }
+
+            log.Add($"✓ 同名 addons 文件已备份：{Path.GetFileName(zipPath)}");
+            return zipPath;
+        }
+        catch (Exception ex)
+        {
+            log.Add("备份 addons 文件失败：" + ex.Message);
+            return null;
+        }
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+        {
+            name = name.Replace(invalid, '_');
+        }
+
+        return name;
+    }
+
     // ------------------------------------------------------------------ 恢复 / 删除
 
     /// <summary>恢复某个 ZIP 备份；恢复前会把当前状态再备份一次。</summary>
@@ -1219,6 +1390,46 @@ public sealed class VoiceManager
             return VoiceOperationResult.Fail(
                 $"没有 {info.DisplayName} 的安装记录，无法自动删除。\r\n" +
                 "可以改用「备份管理」里的某个原版备份进行恢复。", log);
+        }
+
+        // 纯新增（例如 VPK 放进 addons，没有覆盖任何游戏文件）：直接删除新增文件即可
+        if (string.IsNullOrWhiteSpace(record.BackupZip) || !File.Exists(record.BackupZip))
+        {
+            int removedAddons = 0;
+
+            foreach (var relative in record.AddedFiles)
+            {
+                try
+                {
+                    var path = Path.Combine(gameRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+                    if (File.Exists(path))
+                    {
+                        File.Delete(path);
+                        removedAddons++;
+                        log.Add($"已删除：{relative}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.Add($"删除 {relative} 失败：{ex.Message}");
+                }
+            }
+
+            SaveRecord(new VoiceInstallRecord
+            {
+                CharacterCodename = info.Codename,
+                CharacterName = info.EnglishName,
+                ModName = "（已删除 Mod）",
+                InstalledAtLocal = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                FileCount = 0,
+                BackupZip = string.Empty,
+                Status = VoiceInstallRecord.StatusRestored,
+            });
+
+            return new VoiceOperationResult(true,
+                removedAddons > 0
+                    ? $"已删除 {info.DisplayName} 的语音 Mod（移除 {removedAddons} 个新增文件，游戏本体未被动过）"
+                    : "没有找到需要删除的文件（可能已经手动删掉了）", log);
         }
 
         var backup = ListBackups().FirstOrDefault(b =>

@@ -210,6 +210,48 @@ public static class GameLauncher
         return plan;
     }
 
+    /// <summary>关闭正在运行的游戏（返回关闭的进程数）。</summary>
+    public static int CloseGame(int gracePeriodMs = 5000)
+    {
+        int closed = 0;
+
+        foreach (var process in Process.GetProcessesByName("left4dead2"))
+        {
+            try
+            {
+                if (process.CloseMainWindow() && process.WaitForExit(gracePeriodMs))
+                {
+                    closed++;
+                    continue;
+                }
+
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(5000);
+                closed++;
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"关闭游戏进程失败：{ex.Message}");
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        if (closed > 0) Log.Info($"已关闭 {closed} 个 Left 4 Dead 2 进程");
+        return closed;
+    }
+
+    /// <summary>重启游戏：先在跑着的关掉，再按参数启动。</summary>
+    public static GameLaunchResult Restart(SteamPaths paths, GameLaunchOptions options)
+    {
+        var closed = CloseGame();
+        Log.Info($"重启游戏：已关闭 {closed} 个进程，准备重新启动");
+
+        return Launch(paths, options);
+    }
+
     /// <summary>按空格拆分参数，支持 "引号包裹" 的分段。</summary>
     internal static IEnumerable<string> SplitArguments(string? text)
     {

@@ -1,4 +1,4 @@
-using L4D2ModManager.App.Infrastructure;
+﻿using L4D2ModManager.App.Infrastructure;
 using L4D2ModManager.App.Services;
 using L4D2ModManager.Core.Services;
 using L4D2ModManager.Core.Services.Mods;
@@ -95,6 +95,9 @@ public sealed class MainViewModel : ObservableObject
         LaunchGameInsecureCommand = new AsyncRelayCommand(
             () => { LaunchGame(insecure: true); return Task.CompletedTask; },
             () => true, ex => ReportError("启动游戏失败", ex));
+        RestartGameCommand = new AsyncRelayCommand(
+            () => { RestartGame(); return Task.CompletedTask; },
+            () => true, ex => ReportError("重启游戏失败", ex));
         OpenDataFolderCommand = new RelayCommand(_ => OpenFolder(AppPaths.Root));
         OpenLogFolderCommand = new RelayCommand(_ => OpenFolder(AppPaths.LogDir));
         OpenDownloadFolderCommand = new RelayCommand(_ => OpenFolder(Library.ResolveDownloadDirectory()));
@@ -171,6 +174,9 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>以 -insecure 启动游戏（关闭 VAC，联机 Mod / 测试用）。</summary>
     public AsyncRelayCommand LaunchGameInsecureCommand { get; }
 
+    /// <summary>重启游戏：关闭正在运行的游戏再按当前参数启动。</summary>
+    public AsyncRelayCommand RestartGameCommand { get; }
+
     private string _launchStatusText = string.Empty;
 
     /// <summary>启动游戏等操作的反馈文字（显示在侧边栏启动按钮下方）。</summary>
@@ -217,6 +223,37 @@ public sealed class MainViewModel : ObservableObject
         }
 
         _services.Dialogs.Error(result.Error ?? "启动游戏失败。", "启动游戏", result.CommandLine);
+    }
+
+    /// <summary>重启游戏（关掉正在运行的，再启动一次）。</summary>
+    private void RestartGame()
+    {
+        var arguments = Library.Config.LaunchArguments ?? string.Empty;
+        var options = new L4D2ModManager.Core.Services.Steam.GameLaunchOptions
+        {
+            Insecure = arguments.Contains("-insecure", StringComparison.OrdinalIgnoreCase),
+            ExtraArguments = arguments,
+            PreferSteam = Library.Config.LaunchWithSteam,
+        };
+
+        if (!_services.Dialogs.Confirm(
+                "将关闭正在运行的 Left 4 Dead 2，然后重新启动它。\r\n\r\n" +
+                "（改动语音后建议用这个方式让游戏重新加载，并配合 snd_rebuildaudiocache 重建声音缓存）",
+                "重启游戏", null, "重启游戏"))
+        {
+            return;
+        }
+
+        var result = L4D2ModManager.Core.Services.Steam.GameLauncher.Restart(Library.SteamPaths, options);
+
+        if (result.Success)
+        {
+            LaunchStatusText = "已重启游戏";
+            Log.Info($"重启游戏：{result.CommandLine}");
+            return;
+        }
+
+        _services.Dialogs.Error(result.Error ?? "重启游戏失败。", "重启游戏", result.CommandLine);
     }
 
     /// <summary>设置页里的"启动参数"文本。</summary>

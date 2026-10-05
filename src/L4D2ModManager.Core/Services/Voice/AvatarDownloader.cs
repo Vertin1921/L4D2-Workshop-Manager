@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 
@@ -25,6 +25,11 @@ public static class AvatarDownloader
         @"<img[^>]+?(?:src|data-src)=""([^""]+)""",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+    /// <summary>Bing 图片搜索返回的 JSON 里带原始图片地址（murl）。</summary>
+    private static readonly Regex BingImagePattern = new(
+        @"murl(?:&quot;|"")?\s*:\s*(?:&quot;|"")(https?://[^""&\\]+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     private static readonly string[] BadWords =
     {
         "logo", "wordmark", "site-", "favicon", "sprite", "blank", "noimage", "no_image",
@@ -45,6 +50,17 @@ public static class AvatarDownloader
 
         yield return new Source(
             "https://left4dead.huijiwiki.com/wiki/" + Uri.EscapeDataString(info.ChineseName),
+            new[] { info.ChineseName, info.EnglishName });
+
+        // 维基在部分网络下会返回 403；Bing 图片搜索通常可达，作为后备来源
+        yield return new Source(
+            "https://cn.bing.com/images/search?q=" +
+            Uri.EscapeDataString($"Left 4 Dead 2 {info.EnglishName} survivor portrait"),
+            new[] { info.EnglishName });
+
+        yield return new Source(
+            "https://cn.bing.com/images/search?q=" +
+            Uri.EscapeDataString($"求生之路2 {info.ChineseName} 头像"),
             new[] { info.ChineseName, info.EnglishName });
     }
 
@@ -99,8 +115,12 @@ public static class AvatarDownloader
             {
                 var html = await http.GetStringAsync(source.PageUrl, cancellationToken).ConfigureAwait(false);
 
-                var candidates = ImagePattern.Matches(html)
-                    .Select(m => WebUtility.HtmlDecode(m.Groups[1].Value))
+                var raw = ImagePattern.Matches(html)
+                    .Select(m => m.Groups[1].Value)
+                    .Concat(BingImagePattern.Matches(html).Select(m => m.Groups[1].Value));
+
+                var candidates = raw
+                    .Select(WebUtility.HtmlDecode)
                     .Select(url => url.StartsWith("//", StringComparison.Ordinal) ? "https:" + url : url)
                     .Where(url => url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     .Where(url => !BadWords.Any(bad => url.Contains(bad, StringComparison.OrdinalIgnoreCase)))
@@ -152,9 +172,14 @@ public static class AvatarDownloader
 
     private static HttpClient CreateClient()
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
+
+        // 用完整浏览器请求头：维基的 WAF 会把带自定义 UA 的请求直接 403 掉
         client.DefaultRequestHeaders.UserAgent.ParseAdd(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) L4D2ModManager/1.0");
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("zh-CN,zh;q=0.9,en;q=0.8");
+        client.DefaultRequestHeaders.Referrer = new Uri("https://cn.bing.com/");
         return client;
     }
 

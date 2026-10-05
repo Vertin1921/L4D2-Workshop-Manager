@@ -511,23 +511,43 @@ public sealed class VoiceViewModel : ObservableObject
             ? new List<string>()
             : VoiceManager.FindVoiceDirectories(GameRoot, character);
 
-        var confirmText =
-            $"检测到：\r\n" +
-            $"角色：{character.DisplayName}\r\n" +
-            $"文件数量：{source.TotalVoiceFiles}\r\n" +
-            $"来源：{(source.FromVpk ? "VPK" : "文件夹")} {Path.GetFileName(source.SourcePath)}\r\n" +
-            $"目标目录：\r\n" +
-            (targets.Count == 0
-                ? "    （未找到语音目录，将无法安装）"
-                : string.Join("\r\n", targets.Select(t => "    " + Path.GetRelativePath(GameRoot, t)))) +
-            "\r\n\r\n程序将先创建原版备份：\r\n" +
-            $"    {character.EnglishName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.zip\r\n" +
-            "备份成功并通过完整性验证后才会安装。";
+        // VPK 走 addons（不碰游戏内语音文件）；散装文件夹才需要备份后覆盖语音目录
+        var addonsDirectory = string.IsNullOrWhiteSpace(GameRoot)
+            ? string.Empty
+            : Path.Combine(GameRoot, "left4dead2", "addons");
 
-        if (targets.Count == 0)
+        var confirmText = source.FromVpk
+            ? $"检测到：\r\n" +
+              $"角色：{character.DisplayName}\r\n" +
+              $"语音文件数量：{source.TotalVoiceFiles}（该 VPK 内含）\r\n" +
+              $"来源：VPK {Path.GetFileName(source.SourcePath)}\r\n" +
+              $"目标：{addonsDirectory}\\{Path.GetFileName(source.SourcePath)}\r\n\r\n" +
+              "安装方式：作为 addon 放进 addons 目录，由游戏加载。\r\n" +
+              "**不会覆盖或修改游戏内的语音文件**；删除时只需移除这个 VPK。\r\n" +
+              (File.Exists(Path.Combine(addonsDirectory, Path.GetFileName(source.SourcePath)))
+                  ? "（addons 里已有同名文件，会先备份它再覆盖）"
+                  : string.Empty)
+            : $"检测到：\r\n" +
+              $"角色：{character.DisplayName}\r\n" +
+              $"文件数量：{source.TotalVoiceFiles}\r\n" +
+              $"来源：文件夹 {Path.GetFileName(source.SourcePath)}\r\n" +
+              $"目标目录：\r\n" +
+              (targets.Count == 0
+                  ? "    （未找到语音目录，将无法安装）"
+                  : string.Join("\r\n", targets.Select(t => "    " + Path.GetRelativePath(GameRoot, t)))) +
+              "\r\n\r\n安装方式：先把这些目录里的原版语音打包成 ZIP 备份，验证通过后再用你的文件覆盖。\r\n" +
+              $"备份文件名：{character.EnglishName}_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.zip";
+
+        if (!source.FromVpk && targets.Count == 0)
         {
             _services.Dialogs.Error($"没有找到 {character.VoiceRelativeDirectory} 目录，无法安装。\r\n" +
                                     "请确认游戏文件完整。", "语音目录不存在");
+            return;
+        }
+
+        if (source.FromVpk && !Directory.Exists(addonsDirectory))
+        {
+            _services.Dialogs.Error($"找不到 addons 目录：{addonsDirectory}\r\n请确认游戏文件完整。", "addons 目录不存在");
             return;
         }
 
