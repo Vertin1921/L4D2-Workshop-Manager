@@ -287,7 +287,16 @@ public partial class App : Application
 
                                 File.Copy(selfPath, tempCopy, overwrite: true);
 
-                                var tempArgs = new List<string> { "--uninstall", "--from-temp", "--dir=" + installPath };
+                                var tempArgs = new List<string>
+                                {
+                                    "--uninstall",
+                                    "--from-temp",
+                                    "--dir=" + installPath,
+                                    // 兼容"安装程序内核"版本的副本（它认 /uninstall 与 /dir=）
+                                    "/uninstall",
+                                    "/dir=" + installPath,
+                                    "/from-temp",
+                                };
                                 if (silent) tempArgs.Add("--silent");
                                 if (removeData) tempArgs.Add("--removedata");
 

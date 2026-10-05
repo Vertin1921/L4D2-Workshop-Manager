@@ -225,7 +225,8 @@
                     <StackPanel>
                         <TextBlock Text="工具与说明" Style="{StaticResource Text.Section}" />
                         <WrapPanel Margin="0,8,0,0">
-                            <Button Style="{StaticResource Button.Primary}" Content="⬇  下载人物头像" Command="{Binding DownloadAvatarsCommand}"
+                            <Button Style="{StaticResource Button.Ghost}" Content="⬇  下载人物头像" Margin="0,0,0,8"
+                                    Command="{Binding DownloadAvatarsCommand}"
                                     ToolTip="从社区维基抓取八名生还者的头像并缓存到本机（可自己替换）" />
                             <Button Style="{StaticResource Button.Ghost}" Content="📂 打开游戏目录" Margin="8,0,0,8" Command="{Binding OpenGameFolderCommand}" />
                             <Button Style="{StaticResource Button.Ghost}" Content="📄 打开日志目录" Margin="8,0,0,8" Command="{Binding OpenLogsFolderCommand}" />

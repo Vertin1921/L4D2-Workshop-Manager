@@ -10,6 +10,21 @@ public partial class App : Application
         base.OnStartup(e);
 
         var options = CommandLineOptions.Parse(e.Args);
+
+        // 程序目录里的卸载程序只当"复制器 + 启动器"：
+        // 立刻把自己复制到 %TEMP%，由临时副本执行真正的卸载，自己不留任何界面直接退出。
+        // 这样程序目录里那份不是运行中的映像，卸载能把 Uninstall.exe 一起删掉（不再残留）。
+        var fromTemp = e.Args.Any(a => a.Equals("--from-temp", StringComparison.OrdinalIgnoreCase) ||
+                                       a.Equals("/from-temp", StringComparison.OrdinalIgnoreCase));
+
+        if (!fromTemp && AppDeployment.IsUninstallerProcess())
+        {
+            if (TryLaunchTempCopy(e.Args))
+            {
+                Shutdown(0);
+                return;
+            }
+        }
         // 命令行开关：/subdir（在所选目录下再建一层子目录）
         if (e.Args.Any(a => a.Equals("/subdir", StringComparison.OrdinalIgnoreCase) ||
                           a.Equals("-subdir", StringComparison.OrdinalIgnoreCase)))
@@ -32,6 +47,46 @@ public partial class App : Application
         window.Show();
     }
 
+    /// <summary>
+    /// 把当前卸载程序复制到 %TEMP% 并以临时副本启动真正的卸载。
+    /// 目标目录通过 /dir= 显式传给副本（副本自己所在目录是 %TEMP%，不能靠它推断）。
+    /// </summary>
+    private static bool TryLaunchTempCopy(string[] args)
+    {
+        try
+        {
+            var self = Environment.ProcessPath;
+            if (string.IsNullOrWhiteSpace(self) || !File.Exists(self)) return false;
+
+            var target = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+            var dirArg = args.FirstOrDefault(a => a.StartsWith("/dir=", StringComparison.OrdinalIgnoreCase) ||
+                                                  a.StartsWith("--dir=", StringComparison.OrdinalIgnoreCase));
+            if (dirArg != null) target = dirArg.Substring(dirArg.IndexOf('=') + 1).Trim('"');
+
+            var quiet = args.Any(a => a.Equals("/S", StringComparison.OrdinalIgnoreCase) ||
+                                      a.Equals("--silent", StringComparison.OrdinalIgnoreCase));
+
+            var tempCopy = Path.Combine(Path.GetTempPath(), "Uninstall-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".exe");
+            File.Copy(self, tempCopy, overwrite: true);
+
+            var arguments = $"/uninstall /dir=\"{target}\" /from-temp";
+            if (quiet) arguments += " /S";
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tempCopy)
+            {
+                UseShellExecute = true,
+                Arguments = arguments,
+            });
+
+            L4D2ModManager.Core.Services.Log.Info($"已启动临时卸载程序：{tempCopy}（目标目录 {target}）");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            L4D2ModManager.Core.Services.Log.Warn("启动临时卸载程序失败：" + ex.Message);
+            return false;
+        }
+    }
     /// <summary>静默安装 / 卸载（用于自动化部署）。</summary>
     private static int RunSilent(CommandLineOptions options)
     {
