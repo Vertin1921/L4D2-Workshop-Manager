@@ -67,14 +67,14 @@ public partial class ModsView : UserControl
                 }
 
                 container.BeginAnimation(OpacityProperty,
-                    new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(360))
+                    new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(500))
                     {
                         BeginTime = delay,
                         EasingFunction = ease,
                     });
 
                 translate.BeginAnimation(TranslateTransform.YProperty,
-                    new DoubleAnimation(12, 0, TimeSpan.FromMilliseconds(420))
+                    new DoubleAnimation(12, 0, TimeSpan.FromMilliseconds(580))
                     {
                         BeginTime = delay,
                         EasingFunction = ease,

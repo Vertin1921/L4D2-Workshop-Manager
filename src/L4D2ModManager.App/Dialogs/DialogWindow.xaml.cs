@@ -23,9 +23,9 @@ public partial class DialogWindow : Window
         Loaded += (_, _) =>
         {
             var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(280)));
+            BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(390)));
             SheetTransform.BeginAnimation(TranslateTransform.YProperty,
-                new DoubleAnimation(-24, 0, TimeSpan.FromMilliseconds(440))
+                new DoubleAnimation(-24, 0, TimeSpan.FromMilliseconds(610))
                 {
                     EasingFunction = new BackEase { Amplitude = 0.35, EasingMode = EasingMode.EaseOut },
                 });
@@ -37,7 +37,7 @@ public partial class DialogWindow : Window
     {
         try
         {
-            var fade = new DoubleAnimation(Opacity, 0, TimeSpan.FromMilliseconds(220));
+            var fade = new DoubleAnimation(Opacity, 0, TimeSpan.FromMilliseconds(310));
             fade.Completed += (_, _) =>
             {
                 try
@@ -52,7 +52,7 @@ public partial class DialogWindow : Window
 
             BeginAnimation(OpacityProperty, fade);
             SheetTransform.BeginAnimation(TranslateTransform.YProperty,
-                new DoubleAnimation(SheetTransform.Y, -14, TimeSpan.FromMilliseconds(260))
+                new DoubleAnimation(SheetTransform.Y, -14, TimeSpan.FromMilliseconds(500))
                 {
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn },
                 });

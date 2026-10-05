@@ -224,7 +224,7 @@ public partial class WorkshopView : UserControl
         _viewModel?.OnNavigationStarting(e.Uri);
 
         // 顶部的加载条动画
-        var animation = new DoubleAnimation(0.15, 1, TimeSpan.FromMilliseconds(220)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
+        var animation = new DoubleAnimation(0.15, 1, TimeSpan.FromMilliseconds(310)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever };
         LoadingBar.BeginAnimation(OpacityProperty, animation);
     }
 

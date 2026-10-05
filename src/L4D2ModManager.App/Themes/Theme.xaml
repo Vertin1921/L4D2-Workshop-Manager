@@ -158,12 +158,12 @@
                             <BeginStoryboard>
                                 <Storyboard>
                                     <!-- 轻微过冲（BackEase），接近 macOS 的弹性反馈 -->
-                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX" To="1.045" Duration="0:0:0.26">
+                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX" To="1.045" Duration="0:0:0.36">
                                         <DoubleAnimation.EasingFunction>
                                             <BackEase Amplitude="0.5" EasingMode="EaseOut" />
                                         </DoubleAnimation.EasingFunction>
                                     </DoubleAnimation>
-                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY" To="1.045" Duration="0:0:0.26">
+                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY" To="1.045" Duration="0:0:0.36">
                                         <DoubleAnimation.EasingFunction>
                                             <BackEase Amplitude="0.5" EasingMode="EaseOut" />
                                         </DoubleAnimation.EasingFunction>
@@ -174,12 +174,12 @@
                         <EventTrigger RoutedEvent="MouseLeave">
                             <BeginStoryboard>
                                 <Storyboard>
-                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.32">
+                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX" To="1" Duration="0:0:0.42">
                                         <DoubleAnimation.EasingFunction>
                                             <CubicEase EasingMode="EaseOut" />
                                         </DoubleAnimation.EasingFunction>
                                     </DoubleAnimation>
-                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.32">
+                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY" To="1" Duration="0:0:0.42">
                                         <DoubleAnimation.EasingFunction>
                                             <CubicEase EasingMode="EaseOut" />
                                         </DoubleAnimation.EasingFunction>
@@ -190,16 +190,16 @@
                         <EventTrigger RoutedEvent="MouseDown">
                             <BeginStoryboard>
                                 <Storyboard>
-                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX" To="0.965" Duration="0:0:0.10" />
-                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY" To="0.965" Duration="0:0:0.10" />
+                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX" To="0.965" Duration="0:0:0.13" />
+                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY" To="0.965" Duration="0:0:0.13" />
                                 </Storyboard>
                             </BeginStoryboard>
                         </EventTrigger>
                         <EventTrigger RoutedEvent="MouseUp">
                             <BeginStoryboard>
                                 <Storyboard>
-                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX" To="1.035" Duration="0:0:0.16" />
-                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY" To="1.035" Duration="0:0:0.16" />
+                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleX" To="1.035" Duration="0:0:0.22" />
+                                    <DoubleAnimation Storyboard.TargetName="Scale" Storyboard.TargetProperty="ScaleY" To="1.035" Duration="0:0:0.22" />
                                 </Storyboard>
                             </BeginStoryboard>
                         </EventTrigger>
@@ -280,11 +280,11 @@
                                 <BeginStoryboard>
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="GlyphText" Storyboard.TargetProperty="Opacity"
-                                                         To="1" Duration="0:0:0.24" />
+                                                         To="1" Duration="0:0:0.34" />
                                         <DoubleAnimation Storyboard.TargetName="DotScale" Storyboard.TargetProperty="ScaleX"
-                                                         To="1.12" Duration="0:0:0.24" />
+                                                         To="1.12" Duration="0:0:0.34" />
                                         <DoubleAnimation Storyboard.TargetName="DotScale" Storyboard.TargetProperty="ScaleY"
-                                                         To="1.12" Duration="0:0:0.24" />
+                                                         To="1.12" Duration="0:0:0.34" />
                                     </Storyboard>
                                 </BeginStoryboard>
                             </DataTrigger.EnterActions>
@@ -292,11 +292,11 @@
                                 <BeginStoryboard>
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="GlyphText" Storyboard.TargetProperty="Opacity"
-                                                         To="0" Duration="0:0:0.28" />
+                                                         To="0" Duration="0:0:0.38" />
                                         <DoubleAnimation Storyboard.TargetName="DotScale" Storyboard.TargetProperty="ScaleX"
-                                                         To="1" Duration="0:0:0.28" />
+                                                         To="1" Duration="0:0:0.38" />
                                         <DoubleAnimation Storyboard.TargetName="DotScale" Storyboard.TargetProperty="ScaleY"
-                                                         To="1" Duration="0:0:0.28" />
+                                                         To="1" Duration="0:0:0.38" />
                                     </Storyboard>
                                 </BeginStoryboard>
                             </DataTrigger.ExitActions>
@@ -724,9 +724,9 @@
             <EventTrigger RoutedEvent="Loaded">
                 <BeginStoryboard>
                     <Storyboard>
-                        <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.32" />
+                        <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.42" />
                         <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
-                                         To="0" Duration="0:0:0.38">
+                                         To="0" Duration="0:0:0.50">
                             <DoubleAnimation.EasingFunction>
                                 <CubicEase EasingMode="EaseOut" />
                             </DoubleAnimation.EasingFunction>

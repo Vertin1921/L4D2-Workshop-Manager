@@ -83,7 +83,7 @@ public partial class MainWindow : Window
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
 
         // 启动时窗口整体淡入（macOS 应用启动的观感）
-        BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(420))
+        BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(580))
         {
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
         });
@@ -137,13 +137,13 @@ public partial class MainWindow : Window
             var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
 
             PageHost.BeginAnimation(OpacityProperty,
-                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(340)) { EasingFunction = ease });
+                new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(470)) { EasingFunction = ease });
             translateTransform.BeginAnimation(TranslateTransform.YProperty,
-                new DoubleAnimation(16, 0, TimeSpan.FromMilliseconds(440)) { EasingFunction = ease });
+                new DoubleAnimation(16, 0, TimeSpan.FromMilliseconds(610)) { EasingFunction = ease });
             scaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty,
-                new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(480)) { EasingFunction = ease });
+                new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(660)) { EasingFunction = ease });
             scaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty,
-                new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(480)) { EasingFunction = ease });
+                new DoubleAnimation(0.985, 1, TimeSpan.FromMilliseconds(660)) { EasingFunction = ease });
         }
         catch (Exception ex)
         {
@@ -181,7 +181,7 @@ public partial class MainWindow : Window
             }
 
             NavIndicatorTransform.BeginAnimation(TranslateTransform.YProperty,
-                new DoubleAnimation(targetY, TimeSpan.FromMilliseconds(480))
+                new DoubleAnimation(targetY, TimeSpan.FromMilliseconds(660))
                 {
                     EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
                 });
@@ -323,7 +323,7 @@ public partial class MainWindow : Window
             RootBorder.RenderTransform = scale;
 
             var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            var duration = TimeSpan.FromMilliseconds(420);
+            var duration = TimeSpan.FromMilliseconds(580);
             scale.BeginAnimation(ScaleTransform.ScaleXProperty, new DoubleAnimation(1, duration) { EasingFunction = ease });
             scale.BeginAnimation(ScaleTransform.ScaleYProperty, new DoubleAnimation(1, duration) { EasingFunction = ease });
         }
@@ -346,7 +346,7 @@ public partial class MainWindow : Window
             }
 
             var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
-            var duration = TimeSpan.FromMilliseconds(320);
+            var duration = TimeSpan.FromMilliseconds(450);
             foreach (var property in new[] { ScaleTransform.ScaleXProperty, ScaleTransform.ScaleYProperty })
             {
                 var animation = new DoubleAnimation(0.994, 1, duration) { EasingFunction = ease };

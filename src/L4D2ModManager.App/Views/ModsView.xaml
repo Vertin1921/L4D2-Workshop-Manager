@@ -1,4 +1,4 @@
-<UserControl x:Class="L4D2ModManager.App.Views.ModsView"
+﻿<UserControl x:Class="L4D2ModManager.App.Views.ModsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:L4D2ModManager.App.ViewModels"
@@ -254,7 +254,7 @@
                                 <BeginStoryboard>
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="CardLift" Storyboard.TargetProperty="Y"
-                                                         To="-2" Duration="0:0:0.24">
+                                                         To="-2" Duration="0:0:0.34">
                                             <DoubleAnimation.EasingFunction>
                                                 <CubicEase EasingMode="EaseOut" />
                                             </DoubleAnimation.EasingFunction>
@@ -265,7 +265,7 @@
                                 <BeginStoryboard>
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="CardLift" Storyboard.TargetProperty="Y"
-                                                         To="0" Duration="0:0:0.26">
+                                                         To="0" Duration="0:0:0.36">
                                             <DoubleAnimation.EasingFunction>
                                                 <CubicEase EasingMode="EaseOut" />
                                             </DoubleAnimation.EasingFunction>
