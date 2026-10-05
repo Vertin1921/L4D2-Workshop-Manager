@@ -1,4 +1,4 @@
-namespace L4D2ModManager.Core.Models;
+﻿namespace L4D2ModManager.Core.Models;
 
 /// <summary>排序方式。</summary>
 public enum ModSortMode
@@ -72,6 +72,9 @@ public sealed class AppConfig
 
     /// <summary>首次进入人物语音页时自动尝试下载角色头像（可关闭）。</summary>
     public bool AutoDownloadAvatars { get; set; } = true;
+
+    /// <summary>已释放到本机的内置头像版本（内置头像更新时会覆盖一次）。</summary>
+    public string BundledAvatarsStamp { get; set; } = string.Empty;
 
     public ModSortMode SortMode { get; set; } = ModSortMode.Default;
     public bool SortDescending { get; set; }

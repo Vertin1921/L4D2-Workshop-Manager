@@ -173,6 +173,9 @@ public sealed class VoiceViewModel : ObservableObject
     private string _logText = string.Empty;
     private VoiceBackupInfo? _selectedBackup;
     private bool _isBusy;
+    /// <summary>内置头像版本：改了 Assets\avatars 里的图就把它 +1，用户端会自动覆盖一次。</summary>
+    private const string BundledAvatarStamp = "2026-10-05-v2";
+
     private string _avatarHintText = "人物头像：点「下载人物头像」会一次性下载到本机 Avatars 目录，之后一直从本地加载（不再联网）；也可用每个角色卡片上的「头像」按钮选本地图片";
     private bool _avatarAutoTried;
 
@@ -846,15 +849,29 @@ public sealed class VoiceViewModel : ObservableObject
         try
         {
             Directory.CreateDirectory(_manager.AvatarDirectory);
+
+            // 内置头像版本变化（例如更换了整套图）时强制覆盖一次；
+            // 之后不再覆盖，用户自己替换的图片会保留。
+            var force = !string.Equals(_library.Config.BundledAvatarsStamp, BundledAvatarStamp, StringComparison.Ordinal);
             int released = 0;
 
             foreach (var info in VoiceCharacters.All)
             {
-                if (_manager.FindAvatar(info) != null) continue;
+                if (!force && _manager.FindAvatar(info) != null) continue;
 
                 var uri = new Uri("pack://application:,,,/Assets/avatars/" + info.Codename + ".png");
                 var resource = System.Windows.Application.GetResourceStream(uri);
                 if (resource == null) continue;
+
+                // 清掉同名但旧扩展名的文件（避免旧的错图仍被读到）
+                foreach (var other in new[] { ".png", ".jpg", ".jpeg", ".webp" })
+                {
+                    var existing = Path.Combine(_manager.AvatarDirectory, info.Codename + other);
+                    if (File.Exists(existing) && !existing.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                    {
+                        try { File.Delete(existing); } catch { /* 忽略 */ }
+                    }
+                }
 
                 using (var stream = resource.Stream)
                 using (var file = File.Create(Path.Combine(_manager.AvatarDirectory, info.Codename + ".png")))
@@ -865,9 +882,16 @@ public sealed class VoiceViewModel : ObservableObject
                 released++;
             }
 
+            if (force)
+            {
+                _library.Config.BundledAvatarsStamp = BundledAvatarStamp;
+                _library.SaveConfig();
+                VoiceCharacterCard.ClearAvatarCache();
+            }
+
             if (released > 0)
             {
-                Log.Info($"[语音头像] 已释放 {released} 张内置头像到 {_manager.AvatarDirectory}");
+                Log.Info($"[语音头像] 已释放 {released} 张内置头像到 {_manager.AvatarDirectory}（覆盖={force}）");
                 AvatarHintText = $"人物头像：已使用内置头像（{released} 张），可在 Avatars 目录里替换成你自己的图";
             }
         }
