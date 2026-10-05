@@ -98,7 +98,8 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="150" />
+            <!-- 工具与日志区：按内容自适应高度（上限 420），否则按钮换行后会被裁掉、整页也划不到底 -->
+            <RowDefinition Height="Auto" MaxHeight="420" />
         </Grid.RowDefinitions>
 
         <!-- ============ 游戏路径 ============ -->

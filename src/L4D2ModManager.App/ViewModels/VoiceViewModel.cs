@@ -1088,7 +1088,10 @@ public sealed class VoiceViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            _services.Dialogs.Error("复制失败：" + ex.Message, "复制命令");
+            // 不再弹"复制失败"窗口：剪贴板被瞬时占用很常见，而内容往往已经写入。
+            // 只在状态栏与日志里留一行，避免打扰（真正写不进去时用户也能看到提示）。
+            StatusText = "复制失败：剪贴板被其它程序占用，请稍后再试（内容通常已复制成功，可直接 Ctrl+V）";
+            Log.Warn("复制命令失败：" + ex.Message);
         }
     }
 
