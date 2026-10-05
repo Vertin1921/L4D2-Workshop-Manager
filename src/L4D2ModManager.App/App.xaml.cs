@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
@@ -266,7 +266,10 @@ public partial class App : Application
                     {
                         var selfLength = new FileInfo(selfPath).Length;
 
-                        if (selfLength > 8L * 1024 * 1024)
+                        // 默认关闭：实测该路径可能被系统/杀软拦掉（副本起不来，导致卸载静默失败）。
+                        // 需要时可用环境变量 L4D2MM_TEMP_UNINSTALL=1 启用。
+                        if (selfLength > 8L * 1024 * 1024 &&
+                            Environment.GetEnvironmentVariable("L4D2MM_TEMP_UNINSTALL") == "1")
                         {
                             try
                             {

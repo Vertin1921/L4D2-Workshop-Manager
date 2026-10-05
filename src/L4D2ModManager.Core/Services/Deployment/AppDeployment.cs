@@ -486,8 +486,20 @@ public static class AppDeployment
             }
             else
             {
-                deferred.Add(file);
-                RegisterDeleteOnReboot(file);
+                // Windows 不允许删除"正在运行的映像"与"已加载的 DLL"，但允许给它们改名。
+                // 改名挪到临时目录并登记重启后删除，程序目录就能立刻变干净（不再残留 Uninstall.exe 自己）。
+                var relocated = TryRelocateLockedFile(file);
+
+                if (relocated != null)
+                {
+                    deferred.Add(relocated);
+                    RegisterDeleteOnReboot(relocated);
+                }
+                else
+                {
+                    deferred.Add(file);
+                    RegisterDeleteOnReboot(file);
+                }
             }
         }
 
@@ -540,6 +552,29 @@ public static class AppDeployment
 
                 Thread.Sleep(150);
             }
+        }
+    }
+
+    /// <summary>把被占用的文件改名挪到临时目录（成功返回新路径），用于清理"运行中的"卸载程序与已加载 DLL。</summary>
+    private static string? TryRelocateLockedFile(string file)
+    {
+        try
+        {
+            var folder = Path.Combine(Path.GetTempPath(), "L4D2MM-Uninstall-leftover");
+            Directory.CreateDirectory(folder);
+
+            var target = Path.Combine(
+                folder,
+                Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + Path.GetFileName(file));
+
+            File.Move(file, target);
+            Log.Info($"文件被占用，已改名挪出程序目录：{Path.GetFileName(file)} -> {target}");
+            return target;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"挪出被占用文件失败：{file} -> {ex.Message}");
+            return null;
         }
     }
 
