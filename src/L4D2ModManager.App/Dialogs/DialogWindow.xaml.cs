@@ -173,7 +173,7 @@ public partial class DialogWindow : Window
     {
         try
         {
-            Clipboard.SetText(DetailsText.Text);
+            Services.ClipboardHelper.SetText(DetailsText.Text);
             ExtraButton.Content = "已复制";
         }
         catch

@@ -37,6 +37,7 @@ public sealed record VoiceCharacterInfo(
     bool IsL4D1,
     string[] Aliases)
 {
+
     public string DisplayName => $"{EnglishName}（{ChineseName}）";
 
     public string GenerationText => IsL4D1 ? "一代生还者" : "二代生还者";
@@ -1021,7 +1022,7 @@ public sealed class VoiceManager
 
                 if (file.SourcePath != null)
                 {
-                    File.Copy(file.SourcePath, destination, overwrite: true);
+                    VoiceFileHelper.DeleteThenCopy(file.SourcePath, destination);
                 }
                 else
                 {
@@ -1177,7 +1178,7 @@ public sealed class VoiceManager
                 }
             }
 
-            File.Copy(source.SourcePath, destination, overwrite: true);
+            VoiceFileHelper.DeleteThenCopy(source.SourcePath, destination);
 
             var size = new FileInfo(destination).Length;
             Step($"✓ 已放入 addons：{fileName}（{size / 1024.0 / 1024.0:0.0} MB，含 {source.TotalVoiceFiles} 个语音文件）");
