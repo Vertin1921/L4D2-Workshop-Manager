@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using L4D2ModManager.App.Infrastructure;
 using L4D2ModManager.App.Services;
 using L4D2ModManager.Core.Models;
@@ -36,6 +36,8 @@ public sealed class WorkshopViewModel : ObservableObject
         _library = services.Library;
 
         HomeCommand = new RelayCommand(_ => NavigateRequested?.Invoke(AppInfo.WorkshopHomeUrl));
+        FetchWorkshopMetadataCommand = new AsyncRelayCommand(FetchWorkshopMetadataAsync, () => !IsLoading,
+            ex => _services.Dialogs.Error(ex.Message, "抓取工坊信息失败", ex.ToString()));
         BackCommand = new RelayCommand(_ => BackRequested?.Invoke(), () => CanGoBack);
         ForwardCommand = new RelayCommand(_ => ForwardRequested?.Invoke(), () => CanGoForward);
         ReloadCommand = new RelayCommand(_ => ReloadRequested?.Invoke());
@@ -52,6 +54,12 @@ public sealed class WorkshopViewModel : ObservableObject
     }
 
     public event Action<string>? NavigateRequested;
+
+    /// <summary>由 View 注入：在页面里执行 JavaScript（用于抓取工坊物品页）。</summary>
+    public Func<string, Task<string?>>? ScriptRunner { get; set; }
+
+    /// <summary>批量抓取工坊缩略图与标签（走内嵌浏览器，用当前可用的网络）。</summary>
+    public AsyncRelayCommand FetchWorkshopMetadataCommand { get; }
 
     public event Action? BackRequested;
 
@@ -97,6 +105,157 @@ public sealed class WorkshopViewModel : ObservableObject
     {
         get => _searchText;
         set => Set(ref _searchText, value);
+    }
+
+    private sealed class WorkshopMeta
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Image { get; set; } = string.Empty;
+        public List<string> Tags { get; set; } = new();
+    }
+
+    /// <summary>
+    /// 通过内嵌浏览器批量抓取工坊物品页的缩略图与标签。
+    /// 官方 API（api.steampowered.com）在部分网络下不可达，而市面上的工坊网页能正常打开，
+    /// 所以改成在页面内做同源 fetch 取 HTML，再由宿主解析 og:image 与标签。
+    /// </summary>
+    private async Task FetchWorkshopMetadataAsync()
+    {
+        if (ScriptRunner == null)
+        {
+            _services.Dialogs.Error("内嵌浏览器还没有准备好，请先打开一次创意工坊页面。", "抓取工坊信息");
+            return;
+        }
+
+        var library = _services.Library;
+        var targets = library.Mods
+            .Where(m => !string.IsNullOrWhiteSpace(m.WorkshopId))
+            .GroupBy(m => m.WorkshopId!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (targets.Count == 0)
+        {
+            _services.Dialogs.Info("没有找到带创意工坊 ID 的 Mod。", "抓取工坊信息");
+            return;
+        }
+
+        if (!_services.Dialogs.Confirm(
+                $"将为 {targets.Count} 个创意工坊 Mod 抓取缩略图与标签。\r\n\r\n" +
+                "方式：在程序内的工坊页面里逐个读取工坊物品页（用你当前能打开工坊的网络）。\r\n" +
+                "每批 5 个，可能需要几分钟；抓到的标签会用来重新判定 Mod 类型。\r\n\r\n开始吗？",
+                "抓取工坊缩略图与标签", null, "开始抓取"))
+        {
+            return;
+        }
+
+        IsLoading = true;
+        int imageOk = 0, tagOk = 0, failed = 0;
+
+        try
+        {
+            // 先回到工坊首页，保证后面的 fetch 处于 steamcommunity.com 同源上下文
+            NavigateRequested?.Invoke(AppInfo.WorkshopHomeUrl);
+            await Task.Delay(2500).ConfigureAwait(true);
+
+            for (int index = 0; index < targets.Count; index += 5)
+            {
+                var batch = targets.Skip(index).Take(5).ToList();
+                StatusText = $"正在抓取工坊信息：{index}/{targets.Count}…";
+
+                var json = await ScriptRunner(BuildMetadataScript(batch)).ConfigureAwait(true);
+                var metas = ParseMetadata(json);
+
+                if (metas.Count == 0)
+                {
+                    failed += batch.Count;
+                    continue;
+                }
+
+                foreach (var meta in metas)
+                {
+                    var item = library.Mods.FirstOrDefault(m =>
+                        string.Equals(m.WorkshopId, meta.Id, StringComparison.OrdinalIgnoreCase));
+                    if (item == null) continue;
+
+                    if (!string.IsNullOrWhiteSpace(meta.Image))
+                    {
+                        var path = await library.Thumbnails.DownloadPreviewAsync(item, meta.Image).ConfigureAwait(true);
+                        if (path != null)
+                        {
+                            item.ThumbnailPath = path;
+                            imageOk++;
+                        }
+                    }
+
+                    if (meta.Tags.Count > 0)
+                    {
+                        item.Tags = string.Join(", ", meta.Tags);
+                        item.Category = CategoryClassifier.Classify(
+                            item.DisplayName, item.FileIndex, item.Tags, item.Description);
+                        tagOk++;
+                    }
+                }
+
+                await Task.Delay(300).ConfigureAwait(true);
+            }
+
+            library.SaveDatabase();
+            _services.Thumbnails.Clear();
+
+            StatusText = $"抓取完成：缩略图 {imageOk} 个，标签 {tagOk} 个，失败 {failed} 个。到「Mod 管理」点刷新即可看到。";
+            _services.Dialogs.Info(StatusText, "抓取工坊信息");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>在页面里批量取 og:image 与标签，返回 JSON 字符串。</summary>
+    private static string BuildMetadataScript(IReadOnlyList<string> ids)
+    {
+        var list = string.Join(",", ids.Select(id => "\"" + id + "\""));
+
+        return
+            "(async () => { const ids = [" + list + "]; const out = [];" +
+            " for (const id of ids) {" +
+            "  try {" +
+            "   const r = await fetch('https://steamcommunity.com/sharedfiles/filedetails/?id=' + id, { credentials: 'include' });" +
+            "   const html = await r.text();" +
+            "   let og = html.match(/<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']/i);" +
+            "   if (!og) { og = html.match(/<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']/i); }" +
+            "   const tags = [];" +
+            "   const re = /workshop\\/taglist\\/\\?tag=([^\"'&]+)/gi; let t;" +
+            "   while ((t = re.exec(html)) !== null) { const v = decodeURIComponent(t[1]); if (tags.indexOf(v) < 0) { tags.push(v); } }" +
+            "   out.push({ id: id, image: og ? og[1] : '', tags: tags });" +
+            "  } catch (e) { out.push({ id: id, image: '', tags: [] }); }" +
+            " }" +
+            " return JSON.stringify(out); })()";
+    }
+
+    private static List<WorkshopMeta> ParseMetadata(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new List<WorkshopMeta>();
+
+        try
+        {
+            var inner = json.Trim();
+            if (inner.StartsWith("\"", StringComparison.Ordinal))
+            {
+                inner = System.Text.Json.JsonSerializer.Deserialize<string>(inner) ?? inner;
+            }
+
+            return System.Text.Json.JsonSerializer.Deserialize<List<WorkshopMeta>>(
+                       inner,
+                       new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                   ?? new List<WorkshopMeta>();
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"解析工坊抓取结果失败：{ex.Message}");
+            return new List<WorkshopMeta>();
+        }
     }
 
     /// <summary>

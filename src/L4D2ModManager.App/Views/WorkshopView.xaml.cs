@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
@@ -39,6 +39,26 @@ public partial class WorkshopView : UserControl
         if (_viewModel == null) return;
 
         _viewModel.NavigateRequested += OnNavigateRequested;
+        // 注入 JS 执行器：用于在工坊页面里抓取缩略图与标签（不依赖官方 API）
+        _viewModel.ScriptRunner = async script =>
+        {
+            var core = FindBrowser(this)?.CoreWebView2;
+            return core == null ? null : await core.ExecuteScriptAsync(script);
+        };
+
+        static Microsoft.Web.WebView2.Wpf.WebView2? FindBrowser(System.Windows.DependencyObject root)
+        {
+            if (root is Microsoft.Web.WebView2.Wpf.WebView2 view) return view;
+
+            int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+            for (int i = 0; i < count; i++)
+            {
+                var found = FindBrowser(System.Windows.Media.VisualTreeHelper.GetChild(root, i));
+                if (found != null) return found;
+            }
+
+            return null;
+        }
         _viewModel.BackRequested += OnBackRequested;
         _viewModel.ForwardRequested += OnForwardRequested;
         _viewModel.ReloadRequested += OnReloadRequested;
