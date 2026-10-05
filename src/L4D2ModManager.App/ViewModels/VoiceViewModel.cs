@@ -141,6 +141,8 @@ public sealed class VoiceViewModel : ObservableObject
     private string _logText = string.Empty;
     private VoiceBackupInfo? _selectedBackup;
     private bool _isBusy;
+    private string _avatarHintText = "人物头像：使用角色首字母占位，可点「下载人物头像」自动获取，或把自己的图片放进 Avatars 目录";
+    private bool _avatarAutoTried;
 
     public VoiceViewModel(AppServices services)
     {
@@ -167,6 +169,8 @@ public sealed class VoiceViewModel : ObservableObject
         OpenLogsFolderCommand = new RelayCommand(_ => OpenFolder(_manager.LogsDirectory));
         OpenAvatarsFolderCommand = new RelayCommand(_ => OpenAvatarsFolder());
         DownloadAvatarsCommand = new AsyncRelayCommand(DownloadAvatarsAsync, () => !IsBusy, ex => Report("下载头像失败", ex));
+        ChooseModFileCommand = new AsyncRelayCommand(ChooseModFileAsync, () => !IsBusy, ex => Report("选择语音 Mod 失败", ex));
+        ChooseModFolderCommand = new AsyncRelayCommand(ChooseModFolderAsync, () => !IsBusy, ex => Report("选择语音 Mod 失败", ex));
         CacheHelpCommand = new RelayCommand(_ => ShowCacheHelp());
         CopyCacheCommand = new RelayCommand(_ => CopyToClipboard(VoiceManager.RebuildCacheCommand, "已复制：snd_rebuildaudiocache"));
         CopyQuitCommand = new RelayCommand(_ => CopyToClipboard(VoiceManager.QuitCommand, "已复制：quit"));
@@ -179,6 +183,7 @@ public sealed class VoiceViewModel : ObservableObject
 
         DetectGamePath(force: false);
         Refresh();
+        TryAutoDownloadAvatars();
     }
 
     // ------------------------------------------------------------------ 绑定
@@ -223,6 +228,26 @@ public sealed class VoiceViewModel : ObservableObject
 
     /// <summary>从社区维基下载八名角色的头像（缺失的才下载）。</summary>
     public AsyncRelayCommand DownloadAvatarsCommand { get; }
+
+    /// <summary>选择语音 Mod 文件（.vpk）。</summary>
+    public AsyncRelayCommand ChooseModFileCommand { get; }
+
+    /// <summary>选择语音 Mod 文件夹。</summary>
+    public AsyncRelayCommand ChooseModFolderCommand { get; }
+
+    /// <summary>当前是否以管理员身份运行（此时 Windows 会阻止从资源管理器拖放）。</summary>
+    public bool IsElevated { get; } = L4D2ModManager.Core.Services.Deployment.AppDeployment.IsElevated;
+
+    public string DragHintText => IsElevated
+        ? "⚠ 当前以管理员身份运行，Windows 会阻止从资源管理器拖放文件（系统安全限制）。请用下面的「选择 Mod 文件 / 选择 Mod 文件夹」按钮。"
+        : "把语音 Mod（文件夹或 .vpk）拖到本页面任意位置即可自动识别角色；也可以点下面的按钮选择。";
+
+    /// <summary>头像状态说明。</summary>
+    public string AvatarHintText
+    {
+        get => _avatarHintText;
+        private set => Set(ref _avatarHintText, value);
+    }
 
     public RelayCommand CacheHelpCommand { get; }
 
@@ -716,6 +741,71 @@ public sealed class VoiceViewModel : ObservableObject
         }
 
         OpenFolder(dlcDirectories[0]);
+    }
+
+    private async Task ChooseModFileAsync()
+    {
+        if (!EnsureGameRoot()) return;
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "选择语音 Mod（.vpk 优先，也可以选单个语音文件）",
+            Filter = "语音 Mod (*.vpk)|*.vpk|语音文件 (*.wav;*.mp3;*.ogg)|*.wav;*.mp3;*.ogg|所有文件 (*.*)|*.*",
+            CheckFileExists = true,
+        };
+
+        if (dialog.ShowDialog() != true) return;
+        await AcceptDropAsync(dialog.FileName, null);
+    }
+
+    private async Task ChooseModFolderAsync()
+    {
+        if (!EnsureGameRoot()) return;
+
+        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "选择语音 Mod 文件夹（例如解压出来的 sound\\player\\survivor\\voice\\…）" };
+        if (dialog.ShowDialog() != true) return;
+        await AcceptDropAsync(dialog.FolderName, null);
+    }
+
+    private bool EnsureGameRoot()
+    {
+        if (!string.IsNullOrWhiteSpace(GameRoot) && GamePathValid) return true;
+
+        _services.Dialogs.Error("请先指定 Left 4 Dead 2 的游戏路径。", "游戏路径");
+        return false;
+    }
+
+    /// <summary>首次进入且没有任何头像时，后台自动尝试获取一次（可在设置/配置里关掉）。</summary>
+    private void TryAutoDownloadAvatars()
+    {
+        if (_avatarAutoTried) return;
+        _avatarAutoTried = true;
+
+        if (!_library.Config.AutoDownloadAvatars) return;
+        if (Cards.Any(c => c.HasAvatar)) return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                Ui.InvokeAsync(() => AvatarHintText = "人物头像：正在后台自动获取…");
+                var results = await AvatarDownloader.DownloadAllAsync(_manager).ConfigureAwait(false);
+                var ok = results.Count(r => r.Success && !r.Message.Contains("跳过", StringComparison.Ordinal));
+
+                Ui.InvokeAsync(() =>
+                {
+                    Refresh();
+                    AvatarHintText = ok > 0
+                        ? $"人物头像：已自动获取 {ok} 个角色头像"
+                        : "人物头像：自动获取失败（网络不可达或图片源结构变化），可点「下载人物头像」重试，或把自己的图片放进 Avatars 目录";
+                });
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"自动下载头像失败：{ex.Message}");
+                Ui.InvokeAsync(() => AvatarHintText = "人物头像：自动获取失败，可点「下载人物头像」重试");
+            }
+        });
     }
 
     private async Task DownloadAvatarsAsync()

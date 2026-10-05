@@ -40,6 +40,10 @@ public static class AvatarDownloader
             new[] { info.EnglishName, info.ChineseName });
 
         yield return new Source(
+            "https://left4dead.huijiwiki.com/wiki/" + Uri.EscapeDataString(info.EnglishName),
+            new[] { info.EnglishName, info.ChineseName });
+
+        yield return new Source(
             "https://left4dead.huijiwiki.com/wiki/" + Uri.EscapeDataString(info.ChineseName),
             new[] { info.ChineseName, info.EnglishName });
     }
@@ -100,16 +104,24 @@ public static class AvatarDownloader
                     .Select(url => url.StartsWith("//", StringComparison.Ordinal) ? "https:" + url : url)
                     .Where(url => url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     .Where(url => !BadWords.Any(bad => url.Contains(bad, StringComparison.OrdinalIgnoreCase)))
-                    .Where(url => source.Tokens.Any(token => url.Contains(token, StringComparison.OrdinalIgnoreCase)))
                     .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Take(6)
                     .ToList();
 
-                foreach (var url in candidates)
+                // 优先取文件名/路径里带角色名的图片；没有再退而取页面上的第一张可用图片
+                // （中文维基等站点的图片文件名常是哈希串，不能只靠名字匹配）
+                var ordered = candidates
+                    .Where(url => source.Tokens.Any(token => url.Contains(token, StringComparison.OrdinalIgnoreCase)))
+                    .Concat(candidates)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Take(10)
+                    .ToList();
+
+                foreach (var url in ordered)
                 {
                     var bytes = await http.GetByteArrayAsync(url, cancellationToken).ConfigureAwait(false);
                     var extension = DetectImageExtension(bytes);
-                    if (extension == null) continue;   // 不是图片（可能是 HTML 错误页），换下一个
+                    if (extension == null) continue;   // 不是图片（可能是 HTML 错误页）
+                    if (bytes.Length < 4096) continue; // 太小的多半是图标 / 装饰图
 
                     Directory.CreateDirectory(manager.AvatarDirectory);
                     foreach (var other in new[] { ".png", ".jpg", ".jpeg", ".webp" })

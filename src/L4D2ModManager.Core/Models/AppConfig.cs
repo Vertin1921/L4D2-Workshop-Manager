@@ -70,6 +70,9 @@ public sealed class AppConfig
     /// <summary>用户手动指定的 L4D2 游戏根目录（含 left4dead2.exe 的那一层）。</summary>
     public string L4D2GamePath { get; set; } = string.Empty;
 
+    /// <summary>首次进入人物语音页时自动尝试下载角色头像（可关闭）。</summary>
+    public bool AutoDownloadAvatars { get; set; } = true;
+
     public ModSortMode SortMode { get; set; } = ModSortMode.Default;
     public bool SortDescending { get; set; }
 

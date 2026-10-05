@@ -16,6 +16,27 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        // 安装程序启动时把窗口带到最前面一次（不是强制置顶：用户切换窗口后不会一直压在最上面）
+        Loaded += (_, _) => BringToFrontOnce();
+    }
+
+    /// <summary>短暂置顶 + 激活，保证安装程序出现在用户眼前。</summary>
+    private void BringToFrontOnce()
+    {
+        try
+        {
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+
+            Topmost = true;
+            Activate();
+            Topmost = false;
+            Focus();
+        }
+        catch
+        {
+            // 置顶失败不影响安装
+        }
     }
 
     public void Configure(CommandLineOptions options)

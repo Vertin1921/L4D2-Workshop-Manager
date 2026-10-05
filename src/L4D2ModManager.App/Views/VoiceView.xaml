@@ -103,6 +103,8 @@
                                Foreground="{StaticResource Brush.Text}" Margin="0,6,0,0" TextWrapping="Wrap" />
                     <TextBlock Text="{Binding GamePathStatus}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
                                Foreground="{StaticResource Brush.TextMuted}" />
+                    <TextBlock Text="{Binding AvatarHintText}" FontSize="11.5" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource Brush.AccentBright}" />
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
@@ -110,17 +112,28 @@
                     <Button Style="{StaticResource Button.Ghost}" Content="📂  浏览 left4dead2.exe" Margin="8,0,0,0"
                             Command="{Binding BrowseExeCommand}" />
                     <Button Style="{StaticResource Button.Ghost}" Content="🔄  刷新" Margin="8,0,0,0" Command="{Binding RefreshCommand}" />
+                    <Button Style="{StaticResource Button.Primary}" Content="⬇  下载人物头像" Margin="8,0,0,0"
+                            Command="{Binding DownloadAvatarsCommand}"
+                            ToolTip="从社区维基抓取八名生还者的头像并缓存到本机（也可自己替换）" />
                 </StackPanel>
             </Grid>
         </Border>
 
         <!-- ============ 拖放提示 + 状态 ============ -->
         <Border Grid.Row="1" Style="{StaticResource Card.Static}" Padding="14,10" Margin="0,0,0,10">
-            <StackPanel>
-                <TextBlock Text="把语音 Mod（文件夹或 .vpk）拖到本页面任意位置即可自动识别角色；也可以在下面某个角色上点「安装」手动指定。"
-                           Style="{StaticResource Text.Body}" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
-            </StackPanel>
+            <Grid>
+                <StackPanel>
+                    <TextBlock Text="{Binding DragHintText}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Style="{StaticResource Button.Primary}" Content="📂  选择 Mod 文件（.vpk）"
+                            Command="{Binding ChooseModFileCommand}" />
+                    <Button Style="{StaticResource Button.Ghost}" Content="📁  选择 Mod 文件夹" Margin="8,0,0,0"
+                            Command="{Binding ChooseModFolderCommand}" />
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- ============ 角色列表 + 备份管理 ============ -->
