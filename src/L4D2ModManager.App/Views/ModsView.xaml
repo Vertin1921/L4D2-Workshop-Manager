@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="L4D2ModManager.App.Views.ModsView"
+<UserControl x:Class="L4D2ModManager.App.Views.ModsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:L4D2ModManager.App.ViewModels"
@@ -157,21 +157,7 @@
                                 <CheckBox Grid.Column="0" Style="{StaticResource CheckBox.Minimal}" VerticalAlignment="Center"
                                           Margin="2,0,12,0" IsChecked="{Binding IsSelected, Mode=TwoWay}" />
 
-                                <!-- 缩略图 + 分类色条 -->
-                                <Grid Grid.Column="1" Width="116" Height="72" Margin="0,0,14,0">
-                                    <Border CornerRadius="7" Background="#FF0F0F14"
-                                            BorderBrush="{StaticResource Brush.BorderSoft}" BorderThickness="1">
-                                        <!-- 缩略图已按需求移除，仅保留分类色条与分类徽章 -->
-                                    </Border>
-                                    <Border x:Name="AccentBar" Width="5" HorizontalAlignment="Left" Margin="0,6" CornerRadius="2.5"
-                                            Opacity="0.5"
-                                            Background="{Binding Model.Category, Converter={StaticResource CategoryBrush}}" />
-                                    <Border VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="4"
-                                            CornerRadius="4" Padding="5,1" Background="#CC0A0A0E"
-                                            Visibility="{Binding HasWorkshopId, Converter={StaticResource BoolToVisibility}}">
-                                        <TextBlock Text="工坊" FontSize="9.5" Foreground="{StaticResource Brush.Info}" />
-                                    </Border>
-                                </Grid>
+                                <!-- 缩略图区与分类色条已按需求移除；"本地 Mod / 工坊" 标签保留在下方信息行里 -->
 
                                 <!-- 信息 -->
                                 <StackPanel Grid.Column="2" VerticalAlignment="Center">

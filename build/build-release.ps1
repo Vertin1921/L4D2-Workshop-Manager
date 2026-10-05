@@ -123,10 +123,34 @@ Invoke-Dotnet $publishArgs
 $publishedExe = Join-Path $publishDir 'L4D2ModManager.exe'
 if (-not (Test-Path $publishedExe)) { throw "发布结果中缺少 L4D2ModManager.exe" }
 
+# 生成"独立卸载程序"（Setup 内核，不含载荷）并放进载荷目录：
+# 安装时它会随载荷一起解压到程序目录，所以用户不需要把它和安装程序放在一起。
+Write-Step "生成独立卸载程序（Setup 内核，不含载荷）"
+$uninstallerPublishDir = Join-Path $artifacts 'Uninstall-publish'
+$uninstallerArgs = @(
+    'publish', (Join-Path $repoRoot 'src\L4D2ModManager.Setup\L4D2ModManager.Setup.csproj'),
+    '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true',
+    '-p:PublishSingleFile=true', '-p:EmbedPayload=false', '-p:DebugType=none',
+    '-p:SatelliteResourceLanguages=zh-Hans',
+    '-o', $uninstallerPublishDir, '--nologo'
+)
+Invoke-Dotnet $uninstallerArgs
+$uninstallerKernel = Join-Path $uninstallerPublishDir 'L4D2ModManager.Setup.exe'
+if (Test-Path $uninstallerKernel) {
+    Copy-Item $uninstallerKernel (Join-Path $publishDir 'Uninstall.exe') -Force
+    $kernelMb = [math]::Round((Get-Item $uninstallerKernel).Length / 1MB, 1)
+    Write-Host "   独立卸载程序: $kernelMb MB（已放进载荷，安装时落地到程序目录）" -ForegroundColor Green
+} else {
+    Write-Host "   !! 未能生成独立卸载程序，将退回复制主程序副本" -ForegroundColor Yellow
+}
+
 # ---------------------------------------------------------------- 5. 打包载荷
 Write-Step "打包安装载荷 payload.zip"
 if (Test-Path $payloadZip) { Remove-Item $payloadZip -Force }
 Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $payloadZip -CompressionLevel Optimal
+
+# 独立卸载程序只需要留在载荷里（便携版不必带它，避免包体积翻倍）
+Remove-Item (Join-Path $publishDir 'Uninstall.exe') -Force -ErrorAction SilentlyContinue
 $payloadSizeMb = [math]::Round((Get-Item $payloadZip).Length / 1MB, 1)
 Write-Host "   payload.zip: $payloadSizeMb MB"
 

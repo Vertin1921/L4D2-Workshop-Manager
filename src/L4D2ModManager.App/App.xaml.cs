@@ -155,6 +155,12 @@ public partial class App : Application
             var selfInfo = new FileInfo(self);
             var uninstallerInfo = new FileInfo(uninstaller);
 
+            // 只自愈"主程序副本"形态的卸载程序（大小与主程序接近）。
+            // 安装程序装进来的独立卸载程序体积完全不同（上百 MB），绝不能被覆盖掉。
+            var looksLikeAppCopy = uninstallerInfo.Length <= selfInfo.Length * 2;
+
+            if (!looksLikeAppCopy) return;
+
             // 版本不同（大小不同，或卸载程序比主程序旧）就用当前版本覆盖它
             var outdated = selfInfo.Length != uninstallerInfo.Length ||
                            uninstallerInfo.LastWriteTimeUtc < selfInfo.LastWriteTimeUtc.AddMinutes(-1);
