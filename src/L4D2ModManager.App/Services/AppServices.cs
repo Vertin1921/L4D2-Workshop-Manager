@@ -37,6 +37,9 @@ public sealed class AppServices : IDisposable
     /// </summary>
     public Func<string, Task<string?>>? RunWebScript { get; set; }
 
+    /// <summary>页面脚本通道就绪（首次进入创意工坊页）时触发，用于自动开始抓取缩略图。</summary>
+    public Action? ThumbnailChannelReady { get; set; }
+
     /// <summary>初始化：创建数据目录、载入配置与数据库、探测 Steam 路径。</summary>
     public void Initialize()
     {

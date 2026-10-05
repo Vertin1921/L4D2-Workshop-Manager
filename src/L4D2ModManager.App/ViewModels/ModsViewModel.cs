@@ -737,6 +737,10 @@ public sealed class ModsViewModel : ObservableObject
         var token = _thumbnailCts.Token;
         _ = Task.Run(async () =>
         {
+            // 先让主窗口把首屏画出来，再开始逐张加载（明显改善"刚打开就卡"的观感）
+            try { await Task.Delay(700, token).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
+
             foreach (var item in items)
             {
                 if (token.IsCancellationRequested) return;

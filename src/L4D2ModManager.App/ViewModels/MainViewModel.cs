@@ -61,6 +61,9 @@ public sealed class MainViewModel : ObservableObject
         Voice = new VoiceViewModel(services);
         Settings = new SettingsViewModel(services);
 
+        // 缩略图通道就绪后自动抓一次（不阻塞启动，也不需要用户点任何按钮）
+        services.ThumbnailChannelReady = () => Mods.StartAutoThumbnailFetch();
+
         // Mod 列表「查看详情」→ 切到创意工坊页并在内嵌浏览器里打开该物品
         services.ShowWorkshopItem = workshopId =>
         {

@@ -65,6 +65,9 @@ public sealed class WorkshopViewModel : ObservableObject
         {
             _scriptRunner = value;
             _services.RunWebScript = value;
+
+            // 通道就绪 -> 通知主界面：可以自动抓取缩略图与标签了（此时不阻塞启动）
+            if (value != null) _services.ThumbnailChannelReady?.Invoke();
         }
     }
 
