@@ -55,9 +55,15 @@ jobs:
       - name: 写入版本号
         shell: pwsh
         env:
-          L4D2MM_NEW_VERSION: ${{ steps.ver.outputs.version }}
+          VER: ${{ steps.ver.outputs.version }}
         run: |
-          ./build/bump-version.ps1 -NoBuild
+          $path = 'Directory.Build.props'
+          $text = Get-Content $path -Raw
+          $text = $text -replace '<Version>[\d.]+</Version>', "<Version>$env:VER</Version>"
+          $text = $text -replace '<AssemblyVersion>[\d.]+</AssemblyVersion>', "<AssemblyVersion>$env:VER.0</AssemblyVersion>"
+          $text = $text -replace '<FileVersion>[\d.]+</FileVersion>', "<FileVersion>$env:VER.0</FileVersion>"
+          Set-Content -Path $path -Value $text -Encoding UTF8
+          Select-String -Path $path -Pattern '<Version>|<AssemblyVersion>|<FileVersion>'
 
       - name: 构建并打包（安装程序 + 便携版）
         shell: pwsh
