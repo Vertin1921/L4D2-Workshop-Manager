@@ -20,7 +20,13 @@ public sealed class ThumbnailService
     {
         _workshopClient = workshopClient;
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(40) };
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
+
+        // 必须用完整浏览器请求头：自定义 UA（如 L4D2ModManager/1.0）会被 Steam 社区/图床与维基拒绝
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+        _http.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+        _http.DefaultRequestHeaders.AcceptLanguage.ParseAdd("zh-CN,zh;q=0.9,en;q=0.8");
+        _http.DefaultRequestHeaders.Referrer = new Uri("https://steamcommunity.com/");
     }
 
     /// <summary>从 VPK 中提取内置图片。</summary>

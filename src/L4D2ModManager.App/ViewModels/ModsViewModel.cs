@@ -667,9 +667,18 @@ public sealed class ModsViewModel : ObservableObject
 
             await Ui.InvokeAsync(() =>
             {
-                ThumbnailSummary = loaded == total
-                    ? $"缩略图：{loaded}/{total} 个已加载"
-                    : $"缩略图：{loaded}/{total} 个已加载（其余没有内置图片，且工坊预览图没抓到，详见日志）";
+                if (loaded == total)
+                {
+                    ThumbnailSummary = $"缩略图：{loaded}/{total} 个已加载";
+                }
+                else if (!_library.Config.FetchRemoteThumbnails)
+                {
+                    ThumbnailSummary = $"缩略图：{loaded}/{total} 个已加载 —— 「从工坊下载预览图」开关是关的，可在设置里打开";
+                }
+                else
+                {
+                    ThumbnailSummary = $"缩略图：{loaded}/{total} 个已加载（其余既没有内置图片，工坊预览图也没抓到，详见日志）";
+                }
             }).ConfigureAwait(false);
         }, token);
     }
