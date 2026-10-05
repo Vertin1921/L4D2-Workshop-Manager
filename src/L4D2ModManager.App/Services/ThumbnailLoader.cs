@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media.Imaging;
 using L4D2ModManager.Core.Models;
 using L4D2ModManager.Core.Services;
@@ -23,8 +23,9 @@ public sealed class ThumbnailLoader
     public async Task<BitmapImage?> LoadAsync(ModItem item, CancellationToken cancellationToken = default)
     {
         var key = string.IsNullOrWhiteSpace(item.Key) ? item.FilePath : item.Key;
-        if (_cache.TryGetValue(key, out var cached)) return cached;
-        if (_failed.Contains(key)) return null;
+
+        // 只缓存"成功拿到图"的结果；失败不缓存，这样每次刷新 / 重新扫描都会重试
+        if (_cache.TryGetValue(key, out var cached) && cached != null) return cached;
 
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(true);
         try
@@ -40,13 +41,12 @@ public sealed class ThumbnailLoader
 
             if (path == null || !File.Exists(path))
             {
-                _failed.Add(key);
-                _cache[key] = null;
                 return null;
             }
 
             var image = await CreateImageAsync(path).ConfigureAwait(true);
-            if (image == null) _failed.Add(key);
+            if (image == null) return null;
+
             _cache[key] = image;
             return image;
         }

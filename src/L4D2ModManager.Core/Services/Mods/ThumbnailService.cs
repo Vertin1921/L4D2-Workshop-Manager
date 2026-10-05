@@ -101,6 +101,29 @@ public sealed class ThumbnailService
             return existing;
         }
 
+        // 兜底 ①：直接从 VPK 里提取内置图片（完全不需要网络）
+        if (!string.IsNullOrWhiteSpace(item.FilePath) &&
+            Path.GetExtension(item.FilePath).Equals(".vpk", StringComparison.OrdinalIgnoreCase) &&
+            File.Exists(item.FilePath))
+        {
+            try
+            {
+                var archive = VpkReader.TryOpen(item.FilePath, out _);
+                if (archive != null)
+                {
+                    using (archive)
+                    {
+                        var extracted = ExtractFromVpk(item, archive);
+                        if (extracted != null) return extracted;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warn($"从 VPK 提取缩略图失败（{item.FilePath}）：{ex.Message}");
+            }
+        }
+
         if (!allowRemote) return null;
 
         // 需要工坊信息才能拿到 preview_url
@@ -137,20 +160,42 @@ public sealed class ThumbnailService
     {
         try
         {
-            var url = "https://steamcommunity.com/sharedfiles/filedetails/?id=" + Uri.EscapeDataString(workshopId);
-            var html = await _http.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
-
-            var match = System.Text.RegularExpressions.Regex.Match(
-                html,
-                "<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-            if (!match.Success)
+            // 工坊物品页有两种地址形式，都试一遍
+            var urls = new[]
             {
+                "https://steamcommunity.com/sharedfiles/filedetails/?id=" + Uri.EscapeDataString(workshopId),
+                "https://steamcommunity.com/workshop/filedetails/?id=" + Uri.EscapeDataString(workshopId),
+            };
+
+            System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Match.Empty;
+
+            foreach (var url in urls)
+            {
+                string html;
+                try
+                {
+                    html = await _http.GetStringAsync(url, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"抓取工坊页面失败（{url}）：{ex.Message}");
+                    continue;
+                }
+
                 match = System.Text.RegularExpressions.Regex.Match(
                     html,
-                    "<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']",
+                    "<meta[^>]+property=[\"']og:image[\"'][^>]+content=[\"']([^\"']+)[\"']",
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (!match.Success)
+                {
+                    match = System.Text.RegularExpressions.Regex.Match(
+                        html,
+                        "<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:image[\"']",
+                        System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                }
+
+                if (match.Success) break;
             }
 
             if (!match.Success)

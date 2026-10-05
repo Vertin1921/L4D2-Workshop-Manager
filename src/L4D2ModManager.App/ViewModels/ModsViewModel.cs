@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using L4D2ModManager.App.Infrastructure;
 using L4D2ModManager.App.Services;
@@ -42,6 +42,7 @@ public sealed class ModsViewModel : ObservableObject
     private string _linkInput = string.Empty;
     private int _selectedCount;
     private bool _updatingSelection;
+    private string _thumbnailSummary = string.Empty;
 
     public ModsViewModel(AppServices services)
     {
@@ -306,6 +307,13 @@ public sealed class ModsViewModel : ObservableObject
 
     /// <summary>是否有任何选中项（用于按钮可用性提示）。</summary>
     public bool HasSelection => SelectedCount > 0;
+
+    /// <summary>缩略图加载统计（显示在状态行，便于判断是"没图"还是"抓取失败"）。</summary>
+    public string ThumbnailSummary
+    {
+        get => _thumbnailSummary;
+        private set => Set(ref _thumbnailSummary, value);
+    }
 
     public string SummaryText
     {
@@ -653,6 +661,16 @@ public sealed class ModsViewModel : ObservableObject
                 // 让出时间片，保证界面线程始终有机会处理输入与重绘
                 await Task.Delay(1, token).ConfigureAwait(false);
             }
+
+            var loaded = items.Count(i => i.HasThumbnail);
+            var total = items.Count;
+
+            await Ui.InvokeAsync(() =>
+            {
+                ThumbnailSummary = loaded == total
+                    ? $"缩略图：{loaded}/{total} 个已加载"
+                    : $"缩略图：{loaded}/{total} 个已加载（其余没有内置图片，且工坊预览图没抓到，详见日志）";
+            }).ConfigureAwait(false);
         }, token);
     }
 }
