@@ -366,6 +366,41 @@ public partial class App : Application
             Check("配置方案", new Views.ProfilesView(), main.Profiles);
             Check("设置", new Views.SettingsView(), main.Settings);
 
+            // 每个导航页都必须能通过 DataTemplate 映射到真实视图。
+            // （漏写 DataTemplate 时 WPF 会直接把 ViewModel 的 ToString() 显示在页面里，这里专门把它挡住）
+            var navHost = new System.Windows.Controls.ContentControl();
+            foreach (var nav in main.NavItems)
+            {
+                navHost.Content = nav.Page;
+                navHost.Measure(size);
+                navHost.Arrange(rect);
+                navHost.UpdateLayout();
+
+                var view = FindView(navHost);
+                if (view == null)
+                {
+                    throw new InvalidOperationException(
+                        $"导航页「{nav.Title}」没有对应的视图：MainWindow 里缺少 {nav.Page.GetType().Name} 的 DataTemplate 映射。");
+                }
+
+                report.AppendLine($"  · {nav.Title} → {view.GetType().Name}");
+            }
+
+            static System.Windows.Controls.UserControl? FindView(System.Windows.DependencyObject root)
+            {
+                int count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+                for (int i = 0; i < count; i++)
+                {
+                    var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+                    if (child is System.Windows.Controls.UserControl control) return control;
+
+                    var nested = FindView(child);
+                    if (nested != null) return nested;
+                }
+
+                return null;
+            }
+
             // 主窗口 XAML 也要能加载（侧边栏滑动指示条、页面容器、拖放遮罩等都在这里）
             var window = new MainWindow { DataContext = main };
             report.AppendLine("  · 主窗口 XAML 加载正常");

@@ -20,25 +20,8 @@
     </shell:WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <!-- 视图模型 → 视图 映射 -->
-        <DataTemplate DataType="{x:Type vm:ModsViewModel}">
-            <views:ModsView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:WorkshopViewModel}">
-            <views:WorkshopView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:DownloadsViewModel}">
-            <views:DownloadsView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ConflictsViewModel}">
-            <views:ConflictsView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:ProfilesViewModel}">
-            <views:ProfilesView />
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
-            <views:SettingsView />
-        </DataTemplate>
+        <!-- 视图模型 → 视图 的映射统一放在 App.xaml 的应用级资源里，
+             这样自检程序（在窗口之外创建 ContentControl）也能校验每个页面都有对应视图。 -->
     </Window.Resources>
 
     <Border x:Name="RootBorder" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1"

@@ -2,6 +2,8 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:infra="clr-namespace:L4D2ModManager.App.Infrastructure"
+             xmlns:vm="clr-namespace:L4D2ModManager.App.ViewModels"
+             xmlns:views="clr-namespace:L4D2ModManager.App.Views"
              ShutdownMode="OnMainWindowClose">
     <Application.Resources>
         <ResourceDictionary>
@@ -18,6 +20,29 @@
             <infra:DownloadStatusBrushConverter x:Key="DownloadStatusBrush" />
             <infra:ConflictSeverityBrushConverter x:Key="ConflictSeverityBrush" />
             <infra:CountToVisibilityConverter x:Key="CountToVisibility" />
+
+            <!-- ============ 视图模型 → 视图 映射（每个导航页都必须在这里注册） ============ -->
+            <DataTemplate DataType="{x:Type vm:ModsViewModel}">
+                <views:ModsView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:VoiceViewModel}">
+                <views:VoiceView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:WorkshopViewModel}">
+                <views:WorkshopView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:DownloadsViewModel}">
+                <views:DownloadsView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ConflictsViewModel}">
+                <views:ConflictsView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:ProfilesViewModel}">
+                <views:ProfilesView />
+            </DataTemplate>
+            <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+                <views:SettingsView />
+            </DataTemplate>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
