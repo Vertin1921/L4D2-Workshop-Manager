@@ -4,7 +4,7 @@ using L4D2ModManager.App.ViewModels;
 
 namespace L4D2ModManager.App.Views;
 
-/// <summary>人物语音替换页：支持拖入文件夹/文件。</summary>
+/// <summary>L4D2 语音管理器页面：支持把语音 Mod（文件夹 / .vpk）拖进来自动识别角色。</summary>
 public partial class VoiceView : UserControl
 {
     public VoiceView()
@@ -20,12 +20,26 @@ public partial class VoiceView : UserControl
         e.Handled = true;
     }
 
-    private void View_Drop(object sender, DragEventArgs e)
+    private async void View_Drop(object sender, DragEventArgs e)
     {
         if (ViewModel == null) return;
         if (e.Data.GetData(DataFormats.FileDrop) is not string[] paths || paths.Length == 0) return;
 
-        ViewModel.SetSource(paths[0]);
         e.Handled = true;
+
+        // 拖到某个角色卡片上 = 手动指定该角色；拖到空白处 = 自动识别
+        var card = FindCard(e.OriginalSource as DependencyObject);
+        await ViewModel.AcceptDropAsync(paths[0], card);
+    }
+
+    private static VoiceCharacterCard? FindCard(DependencyObject? source)
+    {
+        while (source != null)
+        {
+            if (source is FrameworkElement element && element.DataContext is VoiceCharacterCard card) return card;
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        return null;
     }
 }

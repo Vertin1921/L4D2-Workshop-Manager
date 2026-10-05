@@ -1,4 +1,4 @@
-<UserControl x:Class="L4D2ModManager.App.Views.ModsView"
+﻿<UserControl x:Class="L4D2ModManager.App.Views.ModsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:L4D2ModManager.App.ViewModels"
@@ -45,18 +45,15 @@
 
                 <ComboBox Grid.Column="1" Style="{StaticResource ComboBox.Dark}" Width="168" Margin="8,0,0,0"
                           ItemContainerStyle="{StaticResource ComboBoxItem.Dark}"
-                          ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SelectedSort}"
-                          DisplayMemberPath="Text" ToolTip="排序方式" />
+                          ItemsSource="{Binding SortOptions}" SelectedItem="{Binding SelectedSort}" DisplayMemberPath="Text" ToolTip="排序方式" />
 
                 <ComboBox Grid.Column="2" Style="{StaticResource ComboBox.Dark}" Width="140" Margin="8,0,0,0"
                           ItemContainerStyle="{StaticResource ComboBoxItem.Dark}"
-                          ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
-                          DisplayMemberPath="Text" ToolTip="按分类过滤" />
+                          ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}" DisplayMemberPath="Text" ToolTip="按分类过滤" />
 
                 <ComboBox Grid.Column="3" Style="{StaticResource ComboBox.Dark}" Width="106" Margin="8,0,0,0"
                           ItemContainerStyle="{StaticResource ComboBoxItem.Dark}"
-                          ItemsSource="{Binding States}" SelectedItem="{Binding SelectedState}"
-                          DisplayMemberPath="Text" ToolTip="按启用状态过滤" />
+                          ItemsSource="{Binding States}" SelectedItem="{Binding SelectedState}" DisplayMemberPath="Text" ToolTip="按启用状态过滤" />
 
                 <StackPanel Grid.Column="4" Orientation="Horizontal" Margin="10,0,0,0">
                     <CheckBox Style="{StaticResource CheckBox.Dark}" Content="只看冲突" VerticalAlignment="Center"

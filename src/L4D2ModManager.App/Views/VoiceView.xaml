@@ -6,80 +6,208 @@
              mc:Ignorable="d"
              AllowDrop="True" DragOver="View_DragOver" Drop="View_Drop">
 
-    <Grid Margin="18,14,18,0">
+    <UserControl.Resources>
+        <!-- 角色卡片：头像 + 名字 + 状态 + 按钮 -->
+        <DataTemplate x:Key="VoiceCardTemplate">
+            <Border Style="{StaticResource Card.Item}" Padding="12" Margin="0,0,10,10" Width="420">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 人物缩略图：有自定义图片就用图片，否则用首字母色牌 -->
+                    <Grid Grid.Column="0" Width="56" Height="56" VerticalAlignment="Top">
+                        <Border CornerRadius="28" Background="{Binding Accent}" Opacity="0.85" />
+                        <TextBlock Text="{Binding Initial}" FontSize="24" FontWeight="Bold" Foreground="White"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="{Binding HasAvatar, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}" />
+                        <Image Source="{Binding AvatarImage}" Stretch="UniformToFill"
+                               Visibility="{Binding HasAvatar, Converter={StaticResource BoolToVisibility}}">
+                            <Image.Clip>
+                                <EllipseGeometry Center="28,28" RadiusX="28" RadiusY="28" />
+                            </Image.Clip>
+                        </Image>
+                        <!-- 是否被修改过 -->
+                        <Border Width="12" Height="12" CornerRadius="6" Background="#28C840"
+                                HorizontalAlignment="Right" VerticalAlignment="Bottom" BorderThickness="2"
+                                BorderBrush="#FF14141A"
+                                Visibility="{Binding IsModified, Converter={StaticResource BoolToVisibility}}" />
+                    </Grid>
+
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding EnglishName}" FontSize="14" FontWeight="Bold"
+                                       Foreground="{StaticResource Brush.Text}" />
+                            <TextBlock Text="{Binding ChineseName}" FontSize="12.5" Margin="6,0,0,0"
+                                       Foreground="{StaticResource Brush.TextMuted}" VerticalAlignment="Center" />
+                            <Border CornerRadius="4" Padding="6,1" Margin="8,0,0,0" Background="#26FFFFFF" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Codename}" FontSize="10" FontFamily="{StaticResource Font.Mono}"
+                                           Foreground="{StaticResource Brush.TextDim}" />
+                            </Border>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding StatusText}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Foreground="{StaticResource Brush.AccentBright}" />
+                        <TextBlock Text="{Binding FileCountText}" Style="{StaticResource Text.Muted}" FontSize="11.5" Margin="0,3,0,0" />
+                        <TextBlock Text="{Binding DirectoryText}" Style="{StaticResource Text.Muted}" FontSize="11"
+                                   Margin="0,3,0,0" TextWrapping="Wrap" />
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Style="{StaticResource Button.Primary}" Content="安装" Padding="10,5" FontSize="12"
+                                    Command="{Binding DataContext.InstallCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}" ToolTip="选择语音 Mod（.vpk 优先）并备份后安装" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="备份" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                                    Command="{Binding DataContext.BackupCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}" ToolTip="只备份当前语音，不修改任何文件" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="恢复" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                                    Command="{Binding DataContext.RestoreLatestCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}" ToolTip="恢复该角色最近一次原版备份" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="打开目录" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                                    Command="{Binding DataContext.OpenVoiceFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="打开 DLC" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                                    Command="{Binding DataContext.OpenDlcFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}" />
+                            <Button Style="{StaticResource Button.Danger}" Content="删除 Mod" Padding="10,5" FontSize="12" Margin="6,0,0,0"
+                                    Command="{Binding DataContext.UninstallCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                    CommandParameter="{Binding}" ToolTip="备份当前状态后恢复安装前的原版备份" />
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Margin="18,12,18,0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="150" />
         </Grid.RowDefinitions>
 
-        <!-- 说明 -->
-        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="16,14" Margin="0,0,0,10">
-            <StackPanel>
-                <TextBlock Text="🎙  人物语音替换" Style="{StaticResource Text.Section}" />
-                <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
-                           Text="把语音包文件夹（例如解压出来的 sound\player\zoey\… 或名字里带「佐伊语音」的文件夹）拖进来，程序会按文件夹名与内部路径自动识别角色。1 代角色（Bill / Francis / Louis / Zoey）会同时写入 left4dead2_dlc1、left4dead2_dlc2、left4dead2_dlc3；2 代角色写入 left4dead2。覆盖前会自动备份，之后可一键还原。" />
-            </StackPanel>
-        </Border>
-
-        <!-- 拖放区 -->
-        <Border Grid.Row="1" Style="{StaticResource Card.Static}" Padding="16" Margin="0,0,0,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="拖入语音文件夹（或点右侧按钮选择）" FontSize="13" FontWeight="SemiBold"
-                               Foreground="{StaticResource Brush.Text}" />
-                    <TextBlock Text="{Binding SourceDirectory}" Style="{StaticResource Text.Muted}" TextWrapping="Wrap"
-                               Margin="0,6,0,0" />
-                    <TextBlock Text="{Binding DetectionText}" FontSize="12.5" Margin="0,8,0,0"
-                               Foreground="{StaticResource Brush.AccentBright}" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding TargetText}" Style="{StaticResource Text.Muted}" Margin="0,4,0,0" TextWrapping="Wrap" />
-                    <TextBlock Text="{Binding GameRootText}" Style="{StaticResource Text.Muted}" Margin="0,4,0,0" TextWrapping="Wrap" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" VerticalAlignment="Top" Margin="12,0,0,0">
-                    <Button Style="{StaticResource Button.Primary}" Content="📂  选择文件夹" Command="{Binding ChooseFolderCommand}" />
-                    <TextBlock Text="角色" Style="{StaticResource Text.Muted}" Margin="0,12,0,4" />
-                    <ComboBox Style="{StaticResource ComboBox.Dark}" Width="210"
-                              ItemsSource="{Binding Characters}" SelectedItem="{Binding SelectedCharacter}"
-                              DisplayMemberPath="Text" />
-                    <Button Style="{StaticResource Button.Primary}" Content="⬇  开始替换" Margin="0,12,0,0"
-                            Command="{Binding ReplaceCommand}" />
-                    <TextBlock Text="自动识别不对时可以在这里手动指定角色" Style="{StaticResource Text.Muted}"
-                               FontSize="11" Margin="0,6,0,0" MaxWidth="210" TextWrapping="Wrap" />
-                </StackPanel>
-            </Grid>
-        </Border>
-
-        <!-- 备份与还原 -->
-        <Border Grid.Row="2" Style="{StaticResource Card.Static}" Padding="16,14" Margin="0,0,0,10">
+        <!-- ============ 游戏路径 ============ -->
+        <Border Grid.Row="0" Style="{StaticResource Card}" Padding="16,12" Margin="0,0,0,10">
             <Grid>
                 <StackPanel>
-                    <TextBlock Text="备份与还原" Style="{StaticResource Text.Section}" />
-                    <TextBlock Text="{Binding BackupText}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                    <TextBlock Text="L4D2 游戏路径" Style="{StaticResource Text.Section}" />
+                    <TextBlock Text="{Binding GameRootDisplay}" FontFamily="{StaticResource Font.Mono}" FontSize="12"
+                               Foreground="{StaticResource Brush.Text}" Margin="0,6,0,0" TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding GamePathStatus}" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Foreground="{StaticResource Brush.TextMuted}" />
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <Button Style="{StaticResource Button.Ghost}" Content="↩  还原此角色" Margin="0,0,8,0"
-                            Command="{Binding RestoreCharacterCommand}" />
-                    <Button Style="{StaticResource Button.Danger}" Content="↩  还原全部语音" Margin="0,0,8,0"
-                            Command="{Binding RestoreAllCommand}" />
-                    <Button Style="{StaticResource Button.Ghost}" Content="📂  打开备份目录" Command="{Binding OpenBackupCommand}" />
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button Style="{StaticResource Button.Primary}" Content="🔍  自动检测" Command="{Binding AutoDetectCommand}" />
+                    <Button Style="{StaticResource Button.Ghost}" Content="📂  浏览 left4dead2.exe" Margin="8,0,0,0"
+                            Command="{Binding BrowseExeCommand}" />
+                    <Button Style="{StaticResource Button.Ghost}" Content="🔄  刷新" Margin="8,0,0,0" Command="{Binding RefreshCommand}" />
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- 状态 -->
-        <Border Grid.Row="3" Style="{StaticResource Card.Static}" Padding="14,10" VerticalAlignment="Top">
+        <!-- ============ 拖放提示 + 状态 ============ -->
+        <Border Grid.Row="1" Style="{StaticResource Card.Static}" Padding="14,10" Margin="0,0,0,10">
             <StackPanel>
-                <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Body}" TextWrapping="Wrap" />
-                <ProgressBar Style="{StaticResource ProgressBar.Dark}" Height="4" Margin="0,8,0,0" IsIndeterminate="True"
-                             Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Text="把语音 Mod（文件夹或 .vpk）拖到本页面任意位置即可自动识别角色；也可以在下面某个角色上点「安装」手动指定。"
+                           Style="{StaticResource Text.Body}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Muted}" Margin="0,6,0,0" TextWrapping="Wrap" />
             </StackPanel>
+        </Border>
+
+        <!-- ============ 角色列表 + 备份管理 ============ -->
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="一代生还者" Style="{StaticResource Text.Title}" Margin="2,4,0,8" />
+                <ItemsControl ItemsSource="{Binding L4D1Cards}" ItemTemplate="{StaticResource VoiceCardTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <TextBlock Text="二代生还者" Style="{StaticResource Text.Title}" Margin="2,14,0,8" />
+                <ItemsControl ItemsSource="{Binding L4D2Cards}" ItemTemplate="{StaticResource VoiceCardTemplate}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
+
+                <!-- 备份管理 -->
+                <Border Style="{StaticResource Card.Static}" Padding="14" Margin="0,16,0,0">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="备份管理" Style="{StaticResource Text.Section}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="📂 打开备份目录" Margin="12,0,0,0" Padding="10,4"
+                                    FontSize="12" Command="{Binding OpenBackupsFolderCommand}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="📂 打开数据目录" Margin="6,0,0,0" Padding="10,4"
+                                    FontSize="12" Command="{Binding OpenDataFolderCommand}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="🖼 头像目录" Margin="6,0,0,0" Padding="10,4"
+                                    FontSize="12" Command="{Binding OpenAvatarsFolderCommand}"
+                                    ToolTip="把角色头像命名为代号（如 mechanic.png）放进该目录即可显示人物缩略图" />
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding SelectedBackupDetail}" Style="{StaticResource Text.Muted}" Margin="0,8,0,8"
+                                   TextWrapping="Wrap" />
+
+                        <ListBox Style="{StaticResource ListBox.Clean}" Height="180" ItemsSource="{Binding Backups}"
+                                 SelectedItem="{Binding SelectedBackup}">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="2,3">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding FileName}" FontFamily="{StaticResource Font.Mono}" FontSize="12"
+                                                       Foreground="{StaticResource Brush.Text}" />
+                                            <TextBlock Text="{Binding DetailText}" Style="{StaticResource Text.Muted}" FontSize="11.5" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding ValidText}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                   FontSize="11.5" Foreground="{StaticResource Brush.Warning}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+                            <Button Style="{StaticResource Button.Primary}" Content="↩  恢复选中的备份" Command="{Binding RestoreBackupCommand}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="✅ 验证 ZIP" Margin="8,0,0,0" Command="{Binding VerifyBackupCommand}" />
+                            <Button Style="{StaticResource Button.Danger}" Content="🗑 删除备份" Margin="8,0,0,0" Command="{Binding DeleteBackupCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- 工具 + 说明 -->
+                <Border Style="{StaticResource Card.Static}" Padding="14" Margin="0,12,0,16">
+                    <StackPanel>
+                        <TextBlock Text="工具与说明" Style="{StaticResource Text.Section}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Style="{StaticResource Button.Ghost}" Content="📂 打开游戏目录" Command="{Binding OpenGameFolderCommand}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="📄 打开日志目录" Margin="8,0,0,0" Command="{Binding OpenLogsFolderCommand}" />
+                            <Button Style="{StaticResource Button.Primary}" Content="🎧 声音缓存说明" Margin="8,0,0,0" Command="{Binding CacheHelpCommand}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="📋 复制 snd_rebuildaudiocache" Margin="8,0,0,0" Command="{Binding CopyCacheCommand}" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="📋 复制 quit" Margin="8,0,0,0" Command="{Binding CopyQuitCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding CacheNoticeText}" Style="{StaticResource Text.Muted}" Margin="0,10,0,0" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding MultiplayerNoticeText}" Style="{StaticResource Text.Muted}" Margin="0,8,0,0" TextWrapping="Wrap" />
+                        <TextBlock Style="{StaticResource Text.Muted}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Text="安全规则：任何替换之前都会先创建原版 ZIP 备份并通过完整性验证；备份失败则立即取消，绝不修改游戏文件。恢复之前也会先把当前状态备份一次。本程序只处理 sound\player\survivor\voice\ 下的语音文件。" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ============ 日志窗口 ============ -->
+        <Border Grid.Row="3" Style="{StaticResource Card.Static}" Padding="12,8" Margin="0,0,0,12">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="操作日志" Style="{StaticResource Text.Section}" FontSize="12" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <TextBlock Text="{Binding LogText}" FontFamily="{StaticResource Font.Mono}" FontSize="11"
+                               Foreground="{StaticResource Brush.TextMuted}" TextWrapping="Wrap" />
+                </ScrollViewer>
+            </DockPanel>
         </Border>
     </Grid>
 </UserControl>

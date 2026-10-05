@@ -67,6 +67,9 @@ public sealed class AppConfig
     /// <summary>以 -insecure 启动前先弹出确认（提醒会关闭 VAC）。</summary>
     public bool ConfirmInsecureLaunch { get; set; } = true;
 
+    /// <summary>用户手动指定的 L4D2 游戏根目录（含 left4dead2.exe 的那一层）。</summary>
+    public string L4D2GamePath { get; set; } = string.Empty;
+
     public ModSortMode SortMode { get; set; } = ModSortMode.Default;
     public bool SortDescending { get; set; }
 

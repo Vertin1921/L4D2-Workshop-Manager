@@ -137,7 +137,7 @@ internal static class Program
         Tests.Add(("启动游戏：命令行与 -insecure 参数", TestGameLauncher));
         Tests.Add(("覆盖更新：识别已装目录 + 自动关闭运行中的程序", TestUpdateFlow));
         Tests.Add(("按 Steam 标签分类（含未知）", TestClassificationByTags));
-        Tests.Add(("人物语音替换：识别角色 / 备份 / 一键还原", TestVoiceReplace));
+        Tests.Add(("语音管理器：代号路径 / ZIP 备份 / 安装 / 恢复", TestVoiceReplace));
         Tests.Add(("真实安装载荷解压并运行（可选）", TestRealInstallerPayload));
         Tests.Add(("创意工坊链接与 ID 解析", TestWorkshopParsing));
         Tests.Add(("Steam 路径探测（不抛异常）", TestSteamDetection));
@@ -1098,64 +1098,138 @@ internal static class Program
         Check.True(CategoryClassifier.MatchesTag("UI, Hud, Crosshair", "ui"), "ui 应匹配 UI");
     }
 
-    /// <summary>人物语音替换：角色识别、1 代写入 3 个 DLC、备份与一键还原。</summary>
+    /// <summary>
+    /// 语音管理器（按规格重做）：
+    ///   · 正确的代号路径 sound\player\survivor\voice\<代号>（Ellis=mechanic、Bill=namvet…）
+    ///   · 路径校验、ZIP 备份 + 完整性验证、安装、恢复、安装记录
+    ///   · 安全规则：没有成功的 ZIP 备份绝不替换原版
+    /// </summary>
     private static async Task TestVoiceReplace()
     {
         await Task.Yield();
 
-        // 角色识别
-        Check.Equal("zoey", VoiceCharacters.Detect("D:\\mods\\佐伊语音替换包")?.Id ?? string.Empty,
-            "中文文件夹名应识别出 zoey");
-        Check.Equal("bill", VoiceCharacters.Detect("sound/player/bill/bill_laugh01.wav")?.Id ?? string.Empty,
-            "内部路径应识别出 bill");
-        Check.Equal("coach", VoiceCharacters.Detect("coach_voice.vpk")?.Id ?? string.Empty, "文件名应识别出 coach");
-        Check.True(VoiceCharacters.Detect("一个没有角色名的包") == null, "识别不出时应返回 null");
+        // ① 代号与识别
+        Check.Equal("teengirl", VoiceCharacters.Detect("D:\\mods\\佐伊语音替换包")?.Codename ?? string.Empty,
+            "中文文件夹名应识别出 Zoey(teengirl)");
+        Check.Equal("mechanic", VoiceCharacters.Detect("sound/player/survivor/voice/mechanic/alert.wav")?.Codename ?? string.Empty,
+            "语音内部路径应识别出 Ellis(mechanic)");
+        Check.Equal("namvet", VoiceCharacters.Find(VoiceCharacter.Bill)?.Codename ?? string.Empty, "Bill 的代数是 namvet");
+        Check.Equal("gambler", VoiceCharacters.Find(VoiceCharacter.Nick)?.Codename ?? string.Empty, "Nick 的代数是 gambler");
+        Check.Equal(4, VoiceCharacters.L4D1.Count, "一代应有 4 名生还者");
+        Check.Equal(4, VoiceCharacters.L4D2.Count, "二代应有 4 名生还者");
+        Check.True(VoiceCharacters.IsVoiceFile("a.wav") && VoiceCharacters.IsVoiceFile("b.MP3"), "wav/mp3 都算语音文件");
+        Check.False(VoiceCharacters.IsVoiceFile("models/x.mdl"), "非语音文件不处理");
 
-        var bill = VoiceCharacters.Find(VoiceCharacter.Bill)!;
-        var nick = VoiceCharacters.Find(VoiceCharacter.Nick)!;
-        Check.True(bill.IsL4D1, "Bill 属于 1 代角色");
-        Check.Equal(3, VoiceCharacters.TargetFolders(bill).Count, "1 代角色应写入 3 个 DLC 目录");
-        Check.Equal(1, VoiceCharacters.TargetFolders(nick).Count, "2 代角色只写 left4dead2");
-
-        // 假游戏目录
-        var root = NewDirectory("voice");
+        // ② 假游戏目录
+        var root = NewDirectory("voice2");
         var gameRoot = Path.Combine(root, "Left 4 Dead 2");
-        foreach (var folder in new[] { "left4dead2", "left4dead2_dlc1", "left4dead2_dlc2", "left4dead2_dlc3" })
-            Directory.CreateDirectory(Path.Combine(gameRoot, folder, "sound", "player", "zoey"));
+        var zoey = VoiceCharacters.Find(VoiceCharacter.Zoey)!;
+        var voiceDir = Path.Combine(gameRoot, "left4dead2", zoey.VoiceRelativeDirectory);
+        var dlcVoiceDir = Path.Combine(gameRoot, "left4dead2_dlc1", zoey.VoiceRelativeDirectory);
+        Directory.CreateDirectory(voiceDir);
+        Directory.CreateDirectory(dlcVoiceDir);
+        Directory.CreateDirectory(Path.Combine(gameRoot, "left4dead2", "sound"));
+        File.WriteAllText(Path.Combine(gameRoot, "left4dead2.exe"), "stub");
+        File.WriteAllText(Path.Combine(voiceDir, "zoey_laugh01.wav"), "ORIGINAL");
 
-        var original = Path.Combine(gameRoot, "left4dead2_dlc1", "sound", "player", "zoey", "zoey_laugh01.wav");
-        File.WriteAllText(original, "ORIGINAL");
+        // ③ 路径校验
+        var valid = VoiceManager.ValidateGameRoot(Path.Combine(gameRoot, "left4dead2.exe"), out var pathError);
+        Check.Equal(gameRoot, valid ?? string.Empty, "选择 left4dead2.exe 应得到游戏根目录：" + pathError);
+        VoiceManager.ValidateGameRoot(Path.Combine(root, "不存在"), out var badError);
+        Check.True((badError ?? string.Empty).Contains("未找到有效的"), "无效路径应给出中文错误：" + badError);
+        Check.Equal(2, VoiceManager.FindVoiceDirectories(gameRoot, zoey).Count, "应找到 left4dead2 与 dlc1 两个语音目录");
 
-        // 源语音包
-        var source = Path.Combine(root, "佐伊语音");
-        Directory.CreateDirectory(Path.Combine(source, "sound", "player", "zoey"));
-        File.WriteAllText(Path.Combine(source, "sound", "player", "zoey", "zoey_laugh01.wav"), "REPLACED");
-        File.WriteAllText(Path.Combine(source, "sound", "player", "zoey", "zoey_hello02.wav"), "NEW");
+        var manager = new VoiceManager(Path.Combine(root, "data"));
 
-        var replacer = new VoiceReplacer(Path.Combine(root, "backup"));
-        var result = replacer.Replace(gameRoot, source, VoiceCharacters.Find(VoiceCharacter.Zoey)!);
+        // ④ 备份 + ZIP 验证
+        var (backupResult, backup, _) = manager.CreateBackup(gameRoot, zoey);
+        Check.True(backupResult.Success, "备份应成功：" + backupResult.Message);
+        Check.NotNull(backup, "应返回备份信息");
+        Check.Equal(1, backup!.FileCount, "应备份 1 个原版语音文件");
+        Check.True(File.Exists(backup.FilePath) && new FileInfo(backup.FilePath).Length > 0, "ZIP 应存在且非空");
+        Check.True(manager.VerifyBackup(backup.FilePath).Success, "ZIP 完整性验证应通过");
+        Check.True(backup.FileName.StartsWith("Zoey_", StringComparison.Ordinal), "备份文件名应含角色名：" + backup.FileName);
 
-        Check.True(result.Success, "替换应成功：" + result.Error);
-        Check.Equal(3, result.Targets.Count, "应写入 3 个 DLC 目录：" + string.Join('、', result.Targets));
-        Check.Equal("REPLACED", File.ReadAllText(original), "原有语音应被覆盖");
-        Check.True(File.Exists(Path.Combine(gameRoot, "left4dead2_dlc3", "sound", "player", "zoey", "zoey_hello02.wav")),
-            "新增语音应写入每个 DLC");
-        Check.True(result.BackedUpFiles >= 1, "应至少备份 1 个原有文件");
-        Check.True(replacer.BackupSummary().ContainsKey("zoey"), "备份清单应包含 zoey");
+        using (var zip = System.IO.Compression.ZipFile.OpenRead(backup.FilePath))
+        {
+            var names = zip.Entries.Select(e => e.FullName.Replace('\\', '/')).ToList();
+            Check.True(names.Any(n => n.Equals("left4dead2/sound/player/survivor/voice/teengirl/zoey_laugh01.wav", StringComparison.OrdinalIgnoreCase)),
+                "ZIP 内应保留完整相对路径：" + string.Join("、", names));
+        }
 
-        // 一键还原该角色
-        var restore = replacer.Restore(VoiceCharacter.Zoey, gameRoot);
-        Check.True(restore.Success, "还原应成功：" + restore.Error);
-        Check.Equal("ORIGINAL", File.ReadAllText(original), "原有语音内容应被还原");
-        Check.False(File.Exists(Path.Combine(gameRoot, "left4dead2_dlc3", "sound", "player", "zoey", "zoey_hello02.wav")),
-            "替换时新增的文件应被删除");
-        Check.False(replacer.BackupSummary().ContainsKey("zoey"), "还原后不应还有 zoey 的备份记录");
+        // ⑤ 从文件夹安装
+        var source = Path.Combine(root, "佐伊语音包");
+        Directory.CreateDirectory(Path.Combine(source, "sound", "player", "survivor", "voice", "teengirl"));
+        File.WriteAllText(Path.Combine(source, "sound", "player", "survivor", "voice", "teengirl", "zoey_laugh01.wav"), "REPLACED");
+        File.WriteAllText(Path.Combine(source, "sound", "player", "survivor", "voice", "teengirl", "zoey_hello02.wav"), "NEW");
 
-        // 没有源文件时给出可读错误
+        var scanned = manager.ScanSource(source);
+        Check.True(scanned.Success, "扫描文件夹应成功：" + scanned.Error);
+        Check.Equal("teengirl", scanned.Character?.Codename ?? string.Empty, "应识别为 Zoey");
+        Check.Equal(2, scanned.TotalVoiceFiles, "应找到 2 个语音文件");
+
+        var install = manager.Install(gameRoot, scanned, zoey, "测试语音包");
+        Check.True(install.Success, "安装应成功：" + install.Message);
+        Check.Equal("REPLACED", File.ReadAllText(Path.Combine(voiceDir, "zoey_laugh01.wav")), "原版文件应被替换");
+        Check.True(File.Exists(Path.Combine(dlcVoiceDir, "zoey_hello02.wav")), "新增文件应写入全部语音目录");
+
+        Check.True(manager.LoadRecords().Any(r => r.CharacterCodename == "teengirl" && r.Status == VoiceInstallRecord.StatusInstalled),
+            "应写入安装记录");
+        Check.True(manager.GetStatus(gameRoot, zoey).IsModified, "安装后状态应为「已替换 Mod」");
+
+        // ⑥ 从 VPK 安装（Ellis=mechanic）
+        var ellis = VoiceCharacters.Find(VoiceCharacter.Ellis)!;
+        var mechanicDir = Path.Combine(gameRoot, "left4dead2", ellis.VoiceRelativeDirectory);
+        Directory.CreateDirectory(mechanicDir);
+        File.WriteAllText(Path.Combine(mechanicDir, "alert.wav"), "ORIGINAL");
+
+        var vpkPath = Path.Combine(root, "EllisVoice.vpk");
+        var writer = new VpkWriter()
+            .AddText("sound/player/survivor/voice/mechanic/alert.wav", "FROM_VPK")
+            .AddText("sound/player/survivor/voice/mechanic/death.wav", "FROM_VPK2")
+            .AddText("models/weapons/v_rif_m16.mdl", "SHOULD_NOT_BE_INSTALLED");
+        File.WriteAllBytes(vpkPath, writer.Build(1, out _));
+
+        var vpkSource = manager.ScanSource(vpkPath);
+        Check.True(vpkSource.Success, "扫描 VPK 应成功：" + vpkSource.Error);
+        Check.True(vpkSource.FromVpk, "应识别为 VPK 来源");
+        Check.Equal("mechanic", vpkSource.Character?.Codename ?? string.Empty, "应识别为 Ellis");
+        Check.Equal(2, vpkSource.TotalVoiceFiles, "只应处理语音文件（忽略 models）");
+
+        var vpkInstall = manager.Install(gameRoot, vpkSource, ellis, "EllisVoice.vpk");
+        Check.True(vpkInstall.Success, "VPK 安装应成功：" + vpkInstall.Message);
+        Check.Equal("FROM_VPK", File.ReadAllText(Path.Combine(mechanicDir, "alert.wav")), "VPK 内容应写入");
+        Check.False(File.Exists(Path.Combine(gameRoot, "left4dead2", "models", "weapons", "v_rif_m16.mdl")),
+            "绝不能写入非语音资源");
+
+        // ⑦ 恢复
+        var installRecord = manager.LoadRecords().Last(r =>
+            r.CharacterCodename == "teengirl" && r.Status == VoiceInstallRecord.StatusInstalled);
+        Check.True(installRecord.AddedFiles.Count > 0, "安装记录应记录新增的文件");
+        var originalBackup = manager.ListBackups()
+            .First(b => string.Equals(b.FilePath, installRecord.BackupZip, StringComparison.OrdinalIgnoreCase));
+        var restore = manager.Restore(gameRoot, originalBackup);
+        Check.True(restore.Success, "恢复应成功：" + restore.Message);
+        Check.Equal("ORIGINAL", File.ReadAllText(Path.Combine(voiceDir, "zoey_laugh01.wav")), "应恢复回原版内容");
+        Check.False(File.Exists(Path.Combine(dlcVoiceDir, "zoey_hello02.wav")), "替换时新增的文件应被删除");
+        Check.True(manager.ListBackups().Any(b => b.IsPreRestore), "恢复前应自动生成 pre-restore 备份");
+        Check.False(manager.GetStatus(gameRoot, zoey).IsModified, "恢复后状态应不再是「已替换」");
+
+        // ⑧ 安全规则
+        var otherRoot = Path.Combine(root, "EmptyGame");
+        Directory.CreateDirectory(Path.Combine(otherRoot, "left4dead2", "sound"));
+        File.WriteAllText(Path.Combine(otherRoot, "left4dead2.exe"), "stub");
+        var refused = manager.Install(otherRoot, manager.ScanSource(source), zoey, "测试");
+        Check.False(refused.Success, "语音目录不存在时不允许安装");
+        Check.True(refused.Message.Contains("语音目录不存在"), "应说明语音目录不存在：" + refused.Message);
+
         var empty = Path.Combine(root, "空的");
         Directory.CreateDirectory(empty);
-        var failed = replacer.Replace(gameRoot, empty, VoiceCharacters.Find(VoiceCharacter.Nick)!);
-        Check.False(failed.Success, "空文件夹不应报告成功");
+        Check.False(manager.ScanSource(empty).Success, "空文件夹应扫描失败");
+
+        var brokenZip = Path.Combine(root, "broken.zip");
+        File.WriteAllText(brokenZip, "not a zip");
+        Check.False(manager.VerifyBackup(brokenZip).Success, "损坏的 ZIP 不应通过验证");
     }
 
     private static async Task TestWorkshopParsing()

@@ -9,11 +9,20 @@ using L4D2ModManager.Core.Services.Workshop;
 
 namespace L4D2ModManager.App.ViewModels;
 
-public sealed record SortOption(ModSortMode Mode, string Text);
+public sealed record SortOption(ModSortMode Mode, string Text)
+{
+    public override string ToString() => Text;
+}
 
-public sealed record CategoryOption(ModCategory? Category, string Text);
+public sealed record CategoryOption(ModCategory? Category, string Text)
+{
+    public override string ToString() => Text;
+}
 
-public sealed record StateOption(bool? Enabled, string Text);
+public sealed record StateOption(bool? Enabled, string Text)
+{
+    public override string ToString() => Text;
+}
 
 /// <summary>Mod 列表页面：搜索、排序、过滤、批量启停、删除、下载链接。</summary>
 public sealed class ModsViewModel : ObservableObject
