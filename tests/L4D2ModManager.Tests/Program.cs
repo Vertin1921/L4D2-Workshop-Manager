@@ -1,12 +1,21 @@
-using System.Text;
+﻿using System.Text;
+using L4D2ModManager.Core.Services.Voice;
 using L4D2ModManager.Core.Models;
+using L4D2ModManager.Core.Services.Voice;
 using L4D2ModManager.Core.Services;
+using L4D2ModManager.Core.Services.Voice;
 using L4D2ModManager.Core.Services.Deployment;
+using L4D2ModManager.Core.Services.Voice;
 using L4D2ModManager.Core.Services.Downloads;
+using L4D2ModManager.Core.Services.Voice;
 using L4D2ModManager.Core.Services.Mods;
+using L4D2ModManager.Core.Services.Voice;
 using L4D2ModManager.Core.Services.Steam;
+using L4D2ModManager.Core.Services.Voice;
 using L4D2ModManager.Core.Services.Vpk;
+using L4D2ModManager.Core.Services.Voice;
 using L4D2ModManager.Core.Services.Workshop;
+using L4D2ModManager.Core.Services.Voice;
 
 namespace L4D2ModManager.Tests;
 
@@ -127,6 +136,8 @@ internal static class Program
         Tests.Add(("安装载荷定位（外置 payload.zip）", TestInstallPayloadLookup));
         Tests.Add(("启动游戏：命令行与 -insecure 参数", TestGameLauncher));
         Tests.Add(("覆盖更新：识别已装目录 + 自动关闭运行中的程序", TestUpdateFlow));
+        Tests.Add(("按 Steam 标签分类（含未知）", TestClassificationByTags));
+        Tests.Add(("人物语音替换：识别角色 / 备份 / 一键还原", TestVoiceReplace));
         Tests.Add(("真实安装载荷解压并运行（可选）", TestRealInstallerPayload));
         Tests.Add(("创意工坊链接与 ID 解析", TestWorkshopParsing));
         Tests.Add(("Steam 路径探测（不抛异常）", TestSteamDetection));
@@ -1058,6 +1069,93 @@ internal static class Program
         // 4) 默认进程名应来自主程序可执行文件名
         var defaultName = AppDeployment.CloseRunningInstances();
         Check.True(defaultName.Remaining >= 0, "默认进程名调用不应抛异常");
+    }
+
+    /// <summary>按 Steam 标签分类：标签优先、无信号归「未知」、短标签不误判。</summary>
+    private static async Task TestClassificationByTags()
+    {
+        await Task.Yield();
+
+        var byTag = CategoryClassifier.Classify("随便一个战役.vpk",
+            new[] { ModFileEntry.Format("maps/c1m1.bsp", 1u) }, "Campaign, Co-op");
+        Check.Equal(ModCategory.Map, byTag, "标签 Campaign 应判为地图");
+
+        var soundTag = CategoryClassifier.Classify("UnknownThing.vpk",
+            new[] { ModFileEntry.Format("readme.md", 1u) }, "Sounds, Music");
+        Check.Equal(ModCategory.Audio, soundTag, "标签 Sounds/Music 应判为音频");
+
+        var unknown = CategoryClassifier.Classify("Mystery.vpk", new[] { ModFileEntry.Format("notes.txt", 1u) });
+        Check.Equal(ModCategory.Other, unknown, "没有任何线索应归为未知");
+        Check.Equal("未知", ModCategoryInfo.DisplayName(unknown), "未知分类的显示名");
+
+        // 标签权重高于内部路径
+        var tagWins = CategoryClassifier.Classify("x.vpk",
+            new[] { ModFileEntry.Format("maps/c1m1.bsp", 1u) }, "Weapons");
+        Check.Equal(ModCategory.Weapon, tagWins, "标签应优先于内部路径");
+
+        // 短标签要按单词边界匹配，别把 Building 当成 UI
+        Check.False(CategoryClassifier.MatchesTag("Building", "ui"), "ui 不应匹配 Building");
+        Check.True(CategoryClassifier.MatchesTag("UI, Hud, Crosshair", "ui"), "ui 应匹配 UI");
+    }
+
+    /// <summary>人物语音替换：角色识别、1 代写入 3 个 DLC、备份与一键还原。</summary>
+    private static async Task TestVoiceReplace()
+    {
+        await Task.Yield();
+
+        // 角色识别
+        Check.Equal("zoey", VoiceCharacters.Detect("D:\\mods\\佐伊语音替换包")?.Id ?? string.Empty,
+            "中文文件夹名应识别出 zoey");
+        Check.Equal("bill", VoiceCharacters.Detect("sound/player/bill/bill_laugh01.wav")?.Id ?? string.Empty,
+            "内部路径应识别出 bill");
+        Check.Equal("coach", VoiceCharacters.Detect("coach_voice.vpk")?.Id ?? string.Empty, "文件名应识别出 coach");
+        Check.True(VoiceCharacters.Detect("一个没有角色名的包") == null, "识别不出时应返回 null");
+
+        var bill = VoiceCharacters.Find(VoiceCharacter.Bill)!;
+        var nick = VoiceCharacters.Find(VoiceCharacter.Nick)!;
+        Check.True(bill.IsL4D1, "Bill 属于 1 代角色");
+        Check.Equal(3, VoiceCharacters.TargetFolders(bill).Count, "1 代角色应写入 3 个 DLC 目录");
+        Check.Equal(1, VoiceCharacters.TargetFolders(nick).Count, "2 代角色只写 left4dead2");
+
+        // 假游戏目录
+        var root = NewDirectory("voice");
+        var gameRoot = Path.Combine(root, "Left 4 Dead 2");
+        foreach (var folder in new[] { "left4dead2", "left4dead2_dlc1", "left4dead2_dlc2", "left4dead2_dlc3" })
+            Directory.CreateDirectory(Path.Combine(gameRoot, folder, "sound", "player", "zoey"));
+
+        var original = Path.Combine(gameRoot, "left4dead2_dlc1", "sound", "player", "zoey", "zoey_laugh01.wav");
+        File.WriteAllText(original, "ORIGINAL");
+
+        // 源语音包
+        var source = Path.Combine(root, "佐伊语音");
+        Directory.CreateDirectory(Path.Combine(source, "sound", "player", "zoey"));
+        File.WriteAllText(Path.Combine(source, "sound", "player", "zoey", "zoey_laugh01.wav"), "REPLACED");
+        File.WriteAllText(Path.Combine(source, "sound", "player", "zoey", "zoey_hello02.wav"), "NEW");
+
+        var replacer = new VoiceReplacer(Path.Combine(root, "backup"));
+        var result = replacer.Replace(gameRoot, source, VoiceCharacters.Find(VoiceCharacter.Zoey)!);
+
+        Check.True(result.Success, "替换应成功：" + result.Error);
+        Check.Equal(3, result.Targets.Count, "应写入 3 个 DLC 目录：" + string.Join('、', result.Targets));
+        Check.Equal("REPLACED", File.ReadAllText(original), "原有语音应被覆盖");
+        Check.True(File.Exists(Path.Combine(gameRoot, "left4dead2_dlc3", "sound", "player", "zoey", "zoey_hello02.wav")),
+            "新增语音应写入每个 DLC");
+        Check.True(result.BackedUpFiles >= 1, "应至少备份 1 个原有文件");
+        Check.True(replacer.BackupSummary().ContainsKey("zoey"), "备份清单应包含 zoey");
+
+        // 一键还原该角色
+        var restore = replacer.Restore(VoiceCharacter.Zoey, gameRoot);
+        Check.True(restore.Success, "还原应成功：" + restore.Error);
+        Check.Equal("ORIGINAL", File.ReadAllText(original), "原有语音内容应被还原");
+        Check.False(File.Exists(Path.Combine(gameRoot, "left4dead2_dlc3", "sound", "player", "zoey", "zoey_hello02.wav")),
+            "替换时新增的文件应被删除");
+        Check.False(replacer.BackupSummary().ContainsKey("zoey"), "还原后不应还有 zoey 的备份记录");
+
+        // 没有源文件时给出可读错误
+        var empty = Path.Combine(root, "空的");
+        Directory.CreateDirectory(empty);
+        var failed = replacer.Replace(gameRoot, empty, VoiceCharacters.Find(VoiceCharacter.Nick)!);
+        Check.False(failed.Success, "空文件夹不应报告成功");
     }
 
     private static async Task TestWorkshopParsing()

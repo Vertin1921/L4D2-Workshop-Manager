@@ -47,7 +47,7 @@ public static class ModCategoryInfo
         ModCategory.Map => "地图",
         ModCategory.Script => "脚本",
         ModCategory.Ui => "UI",
-        _ => "其他",
+        _ => "未知",
     };
 
     /// <summary>例如 "🔫 武器"。</summary>

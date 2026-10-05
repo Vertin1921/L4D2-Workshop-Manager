@@ -50,6 +50,51 @@ public static class CategoryClassifier
         new(ModCategory.Ui, new[] { "界面", "ui", "hud", "准星", "crosshair", "菜单" }, 24),
     };
 
+    /// <summary>
+    /// Steam 创意工坊标签 → 分类。
+    /// 标签是作者上传时自己选的，比内部路径更可靠，因此权重最高（200）。
+    /// 短标签（ui / vo 等）用单词边界匹配，避免 "building" 命中 "ui" 之类误判。
+    /// </summary>
+    private static readonly (ModCategory Category, string[] Tags)[] TagRules =
+    {
+        (ModCategory.Map, new[]
+        {
+            "campaign", "map", "maps", "single map", "full campaign", "versus", "survival",
+            "scavenge", "realism", "mutation", "co-op", "coop", "地图", "战役", "关卡",
+        }),
+        (ModCategory.Weapon, new[]
+        {
+            "weapon", "weapons", "gun", "melee", "items", "item", "throwable", "武器", "枪械", "近战",
+        }),
+        (ModCategory.Character, new[]
+        {
+            "survivor", "survivors", "character", "skin", "skins", "model", "models", "player",
+            "infected", "人物", "角色", "模型", "皮肤", "丧尸",
+        }),
+        (ModCategory.Audio, new[]
+        {
+            "sound", "sounds", "audio", "music", "vo", "voice", "音频", "语音", "音效", "音乐",
+        }),
+        (ModCategory.Script, new[]
+        {
+            "script", "scripts", "plugin", "vscript", "gameplay", "脚本", "插件", "玩法",
+        }),
+        (ModCategory.Ui, new[] { "ui", "gui", "hud", "crosshair", "interface", "界面", "准星", "菜单" }),
+    };
+
+    /// <summary>标签匹配：短标签要求单词边界，长标签用包含匹配。</summary>
+    public static bool MatchesTag(string text, string tag)
+    {
+        if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(tag)) return false;
+
+        if (tag.Length > 3) return text.Contains(tag, StringComparison.OrdinalIgnoreCase);
+
+        return System.Text.RegularExpressions.Regex.IsMatch(
+            text,
+            $@"(?<![a-z0-9]){System.Text.RegularExpressions.Regex.Escape(tag)}(?![a-z0-9])",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
+
     /// <summary>体积占比权重：素材类目录的绝对文件数更能反映 Mod 类型。</summary>
     public static ModCategory Classify(
         string fileName,
@@ -61,6 +106,20 @@ public static class CategoryClassifier
         void Add(ModCategory category, double score)
         {
             scores[category] = scores.GetValueOrDefault(category) + score;
+        }
+
+        // ① 先看 Steam 创意工坊标签（作者自己选的，最准）
+        if (!string.IsNullOrWhiteSpace(tagText))
+        {
+            foreach (var (category, tags) in TagRules)
+            {
+                foreach (var tag in tags)
+                {
+                    if (!MatchesTag(tagText!, tag)) continue;
+                    Add(category, 200);
+                    break;
+                }
+            }
         }
 
         if (fileIndex != null)

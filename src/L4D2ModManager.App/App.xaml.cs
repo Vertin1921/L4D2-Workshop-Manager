@@ -359,6 +359,7 @@ public partial class App : Application
             }
 
             Check("Mod 管理", new Views.ModsView(), main.Mods);
+            Check("人物语音", new Views.VoiceView(), main.Voice);
             Check("创意工坊", new Views.WorkshopView(), main.Workshop);
             Check("下载管理", new Views.DownloadsView(), main.Downloads);
             Check("冲突检测", new Views.ConflictsView(), main.Conflicts);

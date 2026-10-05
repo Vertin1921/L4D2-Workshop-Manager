@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="L4D2ModManager.App.Views.ModsView"
+<UserControl x:Class="L4D2ModManager.App.Views.ModsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:L4D2ModManager.App.ViewModels"
@@ -179,7 +179,11 @@
                                                MaxHeight="30" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" />
 
                                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                        <TextBlock Text="{Binding CategoryText}" Style="{StaticResource Text.Muted}" FontSize="11.5" />
+                                        <Button Style="{StaticResource Button.Chip}" Content="{Binding CategoryText}" FontSize="11"
+                                                Padding="8,1" Margin="0,0,4,0"
+                                                Command="{Binding DataContext.FilterByCategoryCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                CommandParameter="{Binding}"
+                                                ToolTip="点击只看该类型的 Mod（再点一次取消筛选）" />
                                         <TextBlock Text=" · " Style="{StaticResource Text.Muted}" FontSize="11.5" />
                                         <TextBlock Text="{Binding SizeText}" Style="{StaticResource Text.Muted}" FontSize="11.5" />
                                         <TextBlock Text=" · " Style="{StaticResource Text.Muted}" FontSize="11.5" />

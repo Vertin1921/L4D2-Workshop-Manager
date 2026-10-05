@@ -78,6 +78,7 @@ public sealed class ModsViewModel : ObservableObject
         SelectAllCommand = new RelayCommand(_ => SelectAll(true), _ => Items.Count > 0);
         SelectNoneCommand = new RelayCommand(_ => SelectAll(false), _ => SelectedCount > 0);
         InvertSelectionCommand = new RelayCommand(_ => InvertSelection(), _ => Items.Count > 0);
+        FilterByCategoryCommand = new RelayCommand(parameter => FilterByCategory(parameter));
         ToggleCommand = new AsyncRelayCommand(parameter => ToggleAsync(parameter as ModItemViewModel), ex => ReportError("切换状态失败", ex));
         DeleteCommand = new AsyncRelayCommand(parameter => DeleteAsync(parameter as ModItemViewModel), ex => ReportError("删除失败", ex));
         OpenFolderCommand = new RelayCommand(parameter => OpenFolder(parameter as ModItemViewModel));
@@ -126,6 +127,36 @@ public sealed class ModsViewModel : ObservableObject
     public RelayCommand SelectNoneCommand { get; }
 
     public RelayCommand InvertSelectionCommand { get; }
+
+    /// <summary>点击卡片上的类型徽章 → 只看该类型（参数可以是 ModItemViewModel 或 ModCategory）。</summary>
+    public RelayCommand FilterByCategoryCommand { get; }
+
+    /// <summary>按类型筛选（再次点击同一类型则取消筛选，回到全部分类）。</summary>
+    private void FilterByCategory(object? parameter)
+    {
+        ModCategory? category = parameter switch
+        {
+            ModItemViewModel item => item.Model.Category,
+            ModCategory value => value,
+            _ => null,
+        };
+
+        if (category == null) return;
+
+        var option = Categories.FirstOrDefault(o => o.Category == category);
+        if (option == null) return;
+
+        // 已经是该类型 → 取消筛选
+        if (ReferenceEquals(SelectedCategory, option))
+        {
+            SelectedCategory = Categories[0];
+            StatusMessage = "已取消类型筛选";
+            return;
+        }
+
+        SelectedCategory = option;
+        StatusMessage = $"只看「{ModCategoryInfo.Full(category.Value)}」类型的 Mod";
+    }
 
     public AsyncRelayCommand ToggleCommand { get; }
 

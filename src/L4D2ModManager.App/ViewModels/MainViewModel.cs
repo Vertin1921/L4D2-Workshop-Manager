@@ -1,4 +1,4 @@
-﻿using L4D2ModManager.App.Infrastructure;
+using L4D2ModManager.App.Infrastructure;
 using L4D2ModManager.App.Services;
 using L4D2ModManager.Core.Services;
 using L4D2ModManager.Core.Services.Mods;
@@ -58,11 +58,13 @@ public sealed class MainViewModel : ObservableObject
         Downloads = new DownloadsViewModel(services);
         Conflicts = new ConflictsViewModel(services);
         Profiles = new ProfilesViewModel(services);
+        Voice = new VoiceViewModel(services);
         Settings = new SettingsViewModel(services);
 
         NavItems = new List<NavItem>
         {
             new("🎮", "Mod 管理", "扫描 / 启停 / 排序", Mods),
+            new("🎙", "人物语音", "1/2 代语音替换与还原", Voice),
             new("🛒", "创意工坊", "程序内浏览与下载", Workshop),
             new("⬇", "下载管理", "进度 / 暂停 / 重试", Downloads),
             new("⚠", "冲突检测", "重复文件与覆盖", Conflicts),
@@ -142,6 +144,9 @@ public sealed class MainViewModel : ObservableObject
     public ConflictsViewModel Conflicts { get; }
 
     public ProfilesViewModel Profiles { get; }
+
+    /// <summary>人物语音替换页。</summary>
+    public VoiceViewModel Voice { get; }
 
     public SettingsViewModel Settings { get; }
 
