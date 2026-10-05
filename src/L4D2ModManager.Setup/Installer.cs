@@ -137,6 +137,21 @@ public static class Installer
         try
         {
             var baseDirectory = AppContext.BaseDirectory;
+            var existing = Path.Combine(target, AppDeployment.UninstallerName);
+
+            // 载荷里已经带了独立卸载程序（体积远大于主程序），此时什么也不做，绝不覆盖它
+            if (File.Exists(existing))
+            {
+                var appExe = Path.Combine(target, AppDeployment.ExecutableName);
+                var appSize = File.Exists(appExe) ? new FileInfo(appExe).Length : 0;
+                var existingSize = new FileInfo(existing).Length;
+
+                if (appSize > 0 && existingSize > appSize * 10)
+                {
+                    Log.Info($"程序目录里已有独立卸载程序（{existingSize / 1024 / 1024} MB），保留不覆盖");
+                    return;
+                }
+            }
             var targetFile = Path.Combine(target, AppDeployment.UninstallerName);
             var candidates = new[]
             {

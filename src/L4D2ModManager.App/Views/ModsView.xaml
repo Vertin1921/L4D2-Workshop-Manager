@@ -259,10 +259,7 @@
                                                 <CubicEase EasingMode="EaseOut" />
                                             </DoubleAnimation.EasingFunction>
                                         </DoubleAnimation>
-                                        <DoubleAnimation Storyboard.TargetName="AccentBar" Storyboard.TargetProperty="Opacity"
-                                                         To="1" Duration="0:0:0.24" />
-                                    </Storyboard>
-                                </BeginStoryboard>
+                                    </Storyboard>                                </BeginStoryboard>
                             </EventTrigger>
                             <EventTrigger RoutedEvent="MouseLeave" SourceName="CardRoot">
                                 <BeginStoryboard>
@@ -273,8 +270,6 @@
                                                 <CubicEase EasingMode="EaseOut" />
                                             </DoubleAnimation.EasingFunction>
                                         </DoubleAnimation>
-                                        <DoubleAnimation Storyboard.TargetName="AccentBar" Storyboard.TargetProperty="Opacity"
-                                                         To="0.5" Duration="0:0:0.26" />
                                     </Storyboard>
                                 </BeginStoryboard>
                             </EventTrigger>
