@@ -247,6 +247,30 @@ public partial class App : Application
         if (probeOnly)
         {
             report.AppendLine();
+            report.AppendLine("镜像站元数据（Steam 官方接口超时时用它兜底）：");
+            try
+            {
+                var info = L4D2ModManager.Core.Services.Workshop.MirrorWorkshopClient
+                    .TryGetDetailAsync(id).GetAwaiter().GetResult();
+
+                if (info == null)
+                {
+                    report.AppendLine("  · 未取到（镜像站没有该条目，或网络不可达）");
+                }
+                else
+                {
+                    report.AppendLine($"  · 标题：{info.Title}");
+                    report.AppendLine($"  · 作者：{info.CreatorName ?? info.Author}");
+                    report.AppendLine($"  · 标签：{info.TagText}");
+                    report.AppendLine($"  · 预览图：{(string.IsNullOrWhiteSpace(info.PreviewUrl) ? "（无）" : "有")}   直链：{(info.HasDirectUrl ? "有" : "（无）")}");
+                }
+            }
+            catch (Exception ex)
+            {
+                report.AppendLine($"  · 失败：{ex.Message}");
+            }
+
+            report.AppendLine();
             report.AppendLine("（--probe：未实际下载）");
             return 0;
         }

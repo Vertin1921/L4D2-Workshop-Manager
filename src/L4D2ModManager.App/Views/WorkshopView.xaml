@@ -140,7 +140,7 @@
 
                     <Separator Margin="0,14,0,10" />
                     <TextBlock Text="下载通道（按顺序自动尝试）" Style="{StaticResource Text.Muted}" FontWeight="SemiBold" />
-                    <TextBlock Text="1. HTTP 直链（Steam UGC）&#x0a;2. Steam 订阅缓存（已订阅时最快最稳）&#x0a;3. steamcmd（需本机安装）"
+                    <TextBlock Text="1. 大陆镜像加速（zhrradiant，国内直连）&#x0a;2. HTTP 直链（Steam UGC）&#x0a;3. Steam 订阅缓存（已订阅时最快最稳）&#x0a;4. steamcmd（需本机安装）"
                                Style="{StaticResource Text.Muted}" FontSize="11.5" Margin="0,6,0,0" />
                     <TextBlock Text="若都失败：在 Steam 中订阅该 Mod，然后回到「下载管理」点击重试。"
                                Style="{StaticResource Text.Muted}" FontSize="11.5" Margin="0,8,0,0" TextWrapping="Wrap" />

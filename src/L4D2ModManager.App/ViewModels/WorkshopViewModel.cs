@@ -496,14 +496,40 @@ public sealed class WorkshopViewModel : ObservableObject
         StatusText = $"正在获取工坊信息（{id}）…";
         try
         {
-            var result = await _library.Workshop.GetDetailsAsync(new[] { id }).ConfigureAwait(true);
-            var item = result.First;
+            // 国内访问 Steam 官方工坊接口经常直接超时（实测 45 秒都不返回），
+            // 所以只等 12 秒；拿不到就改用大陆镜像站（zhrradiant），通常 2 秒内就有标题 / 预览 / 标签。
+            WorkshopItemInfo? item = null;
+            string? steamError = null;
+
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(12));
+                var result = await _library.Workshop.GetDetailsAsync(new[] { id }, cts.Token).ConfigureAwait(true);
+                item = result.First;
+                steamError = result.Error;
+            }
+            catch (OperationCanceledException)
+            {
+                steamError = "Steam 工坊接口 12 秒无响应";
+                Log.Warn($"Steam 工坊接口超时（{id}），改用大陆镜像站");
+            }
+            catch (Exception ex)
+            {
+                steamError = ex.Message;
+                Log.Warn($"Steam 工坊接口异常（{id}）：{ex.Message}");
+            }
 
             if (item == null)
             {
-                // 不弹窗打断：下载时还有订阅缓存 / steamcmd 两条通道可用，状态栏提示即可
+                StatusText = "Steam 接口不可用，正在改用大陆镜像站获取信息…";
+                item = await MirrorWorkshopClient.TryGetDetailAsync(id).ConfigureAwait(true);
+            }
+
+            if (item == null)
+            {
+                // 不弹窗打断：下载时还有大陆镜像 / 订阅缓存 / steamcmd 三条通道可用，状态栏提示即可
                 CurrentItem = null;
-                StatusText = result.Error ?? "未获取到条目信息（可能网络无法访问 Steam 接口）";
+                StatusText = $"未获取到条目信息（Steam 接口与大陆镜像站均不可用：{steamError ?? "无响应"}）";
                 return;
             }
 
