@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -38,6 +38,9 @@ public sealed class MirrorWorkshopProvider : IWorkshopDownloadProvider
     private static DateTime _probeCoolDownUntil = DateTime.MinValue;
 
     private static string? _probeNote;
+
+    /// <summary>连上之后多久没有收到任何字节就判定为停滞（中断本次连接并自动续传重试）。</summary>
+    private static readonly TimeSpan StallTimeout = TimeSpan.FromSeconds(20);
 
     public string Name => ChunkNotice;
 
@@ -163,6 +166,7 @@ public sealed class MirrorWorkshopProvider : IWorkshopDownloadProvider
             long downloaded = existing;
             var stopwatch = Stopwatch.StartNew();
             long lastBytes = downloaded;
+            double speed = 0;
             var lastReport = TimeSpan.Zero;
 
             while (true)
@@ -170,7 +174,18 @@ public sealed class MirrorWorkshopProvider : IWorkshopDownloadProvider
                 cancellationToken.ThrowIfCancellationRequested();
                 task.PauseGate.Wait(cancellationToken);
 
-                var read = await source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                // 停滞检测：连上之后服务端可能不再发数据（连接挂起），
+                // 不设超时的话界面会一直停在某个百分比、速度显示成几 KB/s。
+                // 这里 20 秒收不到任何字节就中断本次连接，交上层自动重试（会从断点续传接着下）。
+                var readTask = source.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).AsTask();
+                var winner = await Task.WhenAny(readTask, Task.Delay(StallTimeout, cancellationToken)).ConfigureAwait(false);
+                if (winner != readTask)
+                {
+                    Log.Warn($"下载停滞：{StallTimeout.TotalSeconds:0} 秒没有收到数据，中断本次连接（将从断点续传重试）");
+                    return DownloadResult.Fail($"连接停滞（{StallTimeout.TotalSeconds:0} 秒无数据）");
+                }
+
+                var read = await readTask.ConfigureAwait(false);
                 if (read <= 0) break;
 
                 await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
@@ -180,7 +195,11 @@ public sealed class MirrorWorkshopProvider : IWorkshopDownloadProvider
                 if (elapsed - lastReport >= TimeSpan.FromMilliseconds(400))
                 {
                     var seconds = (elapsed - lastReport).TotalSeconds;
-                    var speed = seconds > 0 ? (downloaded - lastBytes) / seconds : 0;
+                    var instant = seconds > 0 ? (downloaded - lastBytes) / seconds : 0;
+
+                    // 滑动平均：瞬时值会因为「下一大块—停一会儿」的网络抖动掉到几 KB/s，会让人以为卡死了
+                    speed = speed <= 0 ? instant : speed * 0.7 + instant * 0.3;
+
                     progress?.Report(new DownloadProgress(downloaded, total, speed, null));
                     lastBytes = downloaded;
                     lastReport = elapsed;
