@@ -105,7 +105,9 @@ public sealed class ThumbnailLoader
             var image = new BitmapImage();
             image.BeginInit();
             image.CacheOption = BitmapCacheOption.OnLoad;
-            image.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+            // 注意：用 StreamSource 时若同时设置 IgnoreImageCache，WPF 内部会以 null 作为缓存键，
+            // 从而抛出 "Value cannot be null. (Parameter 'key')"（日志里刷屏的就是它）。这里保持 None 即可。
+            image.CreateOptions = BitmapCreateOptions.None;
             image.DecodePixelWidth = 240;   // 卡片显示宽度约 116px，2 倍图足够清晰且解码更快
             image.StreamSource = stream;
             image.EndInit();

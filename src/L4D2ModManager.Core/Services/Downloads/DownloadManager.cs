@@ -1,4 +1,4 @@
-using L4D2ModManager.Core.Models;
+﻿using L4D2ModManager.Core.Models;
 using L4D2ModManager.Core.Services.Steam;
 using L4D2ModManager.Core.Services.Workshop;
 
@@ -256,7 +256,7 @@ public sealed class DownloadManager : IDisposable
 
                 if (!provider.CanHandle(task, info))
                 {
-                    errors.Add($"{provider.Name}：当前条目不可用（{provider.Description}）");
+                    errors.Add($"{provider.Name}：该通道不适用（{provider.Description}）");
                     continue;
                 }
 
@@ -274,35 +274,53 @@ public sealed class DownloadManager : IDisposable
                     if (!string.IsNullOrWhiteSpace(p.Detail)) task.StatusDetail = p.Detail!;
                 });
 
-                try
+                // 瞬时网络失败（断流 / 超时 / 连接被重置）自动重试；带退避，且续传会接着已下载的部分继续。
+                const int MaxAttempts = 3;
+                DownloadResult result = DownloadResult.Fail("未执行");
+
+                for (var attempt = 1; attempt <= MaxAttempts; attempt++)
                 {
-                    var result = await provider.DownloadAsync(task, info, progress, token).ConfigureAwait(true);
-
-                    if (result.Success && !string.IsNullOrWhiteSpace(result.FilePath))
+                    try
                     {
-                        task.FinalFilePath = result.FilePath;
-                        task.Status = DownloadStatus.Completed;
-                        task.CompletedUtc = DateTime.UtcNow;
-                        task.SpeedBps = 0;
-                        task.StatusDetail = $"已保存：{Path.GetFileName(result.FilePath)}";
-                        Log.Info($"下载完成：{task.Title} -> {result.FilePath}");
-
-                        TaskUpdated?.Invoke(task);
-                        DownloadCompleted?.Invoke(task, result.FilePath!);
-                        return;
+                        result = await provider.DownloadAsync(task, info, progress, token).ConfigureAwait(true);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        result = DownloadResult.Fail(ex.Message);
+                        Log.Warn($"{provider.Name} 通道异常（第 {attempt}/{MaxAttempts} 次）: {ex.Message}");
                     }
 
-                    errors.Add($"{provider.Name}：{result.Error ?? "未知错误"}");
+                    if (result.Success) break;
+                    if (result.Permanent) break;                 // 条目不存在 / 403 等，重试没有意义
+                    if (attempt >= MaxAttempts) break;
+
+                    task.StatusDetail = $"{provider.Name}：网络中断，正在自动重试（{attempt}/{MaxAttempts}）…";
+                    TaskUpdated?.Invoke(task);
+                    Log.Warn($"{provider.Name} 第 {attempt} 次失败，{1.5 * attempt:0.#} 秒后重试：{result.Error}");
+                    await Task.Delay(TimeSpan.FromSeconds(1.5 * attempt), token).ConfigureAwait(true);
                 }
-                catch (OperationCanceledException)
+
+                if (result.Success && !string.IsNullOrWhiteSpace(result.FilePath))
                 {
-                    throw;
+                    task.FinalFilePath = result.FilePath;
+                    task.Status = DownloadStatus.Completed;
+                    task.CompletedUtc = DateTime.UtcNow;
+                    task.SpeedBps = 0;
+                    task.StatusDetail = $"已保存：{Path.GetFileName(result.FilePath)}";
+                    Log.Info($"下载完成：{task.Title} -> {result.FilePath}");
+
+                    TaskUpdated?.Invoke(task);
+                    DownloadCompleted?.Invoke(task, result.FilePath!);
+                    return;
                 }
-                catch (Exception ex)
-                {
-                    errors.Add($"{provider.Name}：{ex.Message}");
-                    Log.Warn($"{provider.Name} 通道异常: {ex.Message}");
-                }
+
+                errors.Add(result.Permanent
+                    ? $"{provider.Name}：{result.Error ?? "条目不可用"}（该条目本身不可下载）"
+                    : $"{provider.Name}：{result.Error ?? "网络错误"}（网络问题，已自动重试 {MaxAttempts} 次，可再点「重试」）");
             }
 
             throw new InvalidOperationException(

@@ -856,22 +856,68 @@ public sealed class VoiceViewModel : ObservableObject
 
         var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Title = "选择语音 Mod（.vpk 优先，也可以选单个语音文件）",
+            Title = "选择语音 Mod（可多选：按住 Ctrl / Shift 一次选多个）",
             Filter = "语音 Mod (*.vpk)|*.vpk|语音文件 (*.wav;*.mp3;*.ogg)|*.wav;*.mp3;*.ogg|所有文件 (*.*)|*.*",
             CheckFileExists = true,
+            Multiselect = true,
         };
 
         if (dialog.ShowDialog() != true) return;
-        await AcceptDropAsync(dialog.FileName, null);
+        await InstallBatchAsync(dialog.FileNames);
     }
 
     private async Task ChooseModFolderAsync()
     {
         if (!EnsureGameRoot()) return;
 
-        var dialog = new Microsoft.Win32.OpenFolderDialog { Title = "选择语音 Mod 文件夹（例如解压出来的 sound\\player\\survivor\\voice\\…）" };
+        var dialog = new Microsoft.Win32.OpenFolderDialog
+        {
+            Title = "选择语音 Mod 文件夹（可多选：按住 Ctrl / Shift 一次选多个）",
+            Multiselect = true,
+        };
+
         if (dialog.ShowDialog() != true) return;
-        await AcceptDropAsync(dialog.FolderName, null);
+        await InstallBatchAsync(dialog.FolderNames);
+    }
+
+    /// <summary>
+    /// 批量安装：选中的每一项都走既有的「检测角色 → ZIP 备份 → 清空原语音 → 整包粘贴」流程，
+    /// 逐项独立执行（某一项失败不影响后面的），最后给出汇总。
+    /// </summary>
+    private async Task InstallBatchAsync(IReadOnlyList<string>? paths)
+    {
+        var list = paths?
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
+
+        if (list.Count == 0) return;
+        if (list.Count == 1) { await AcceptDropAsync(list[0], null); return; }
+
+        var ok = 0;
+        var problems = new List<string>();
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            var name = Path.GetFileName(list[i].TrimEnd(Path.DirectorySeparatorChar));
+            StatusText = $"批量安装（{i + 1}/{list.Count}）：{name}";
+
+            try
+            {
+                await AcceptDropAsync(list[i], null);
+                ok++;
+            }
+            catch (Exception ex)
+            {
+                problems.Add($"{name}：{ex.Message}");
+                Log.Warn($"批量安装「{name}」失败：{ex.Message}");
+            }
+        }
+
+        StatusText = problems.Count == 0
+            ? $"批量安装完成：{ok}/{list.Count} 个成功。"
+            : $"批量安装完成：{ok}/{list.Count} 个成功，{problems.Count} 个失败（{string.Join("；", problems)}）。";
+        Log.Info(StatusText);
     }
 
     private bool EnsureGameRoot()
