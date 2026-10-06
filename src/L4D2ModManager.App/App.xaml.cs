@@ -197,6 +197,90 @@ public partial class App : Application
     // ------------------------------------------------------------------ 无界面模式
 
     /// <summary>支持 --version / --help / --diagnose / --scan [目录]，输出到控制台与数据目录下的报告文件。</summary>
+    /// <summary>
+    /// --download：命令行下载创意工坊 Mod，依次尝试内置通道（大陆镜像加速优先）。
+    /// 加 --probe 只探测"镜像站是否可用 + 拿到的直链 + 各通道是否可尝试"，不实际下载。
+    /// </summary>
+    private static int RunDownload(string[] args, StringBuilder report)
+    {
+        var id = args.Skip(1).FirstOrDefault(a => !a.StartsWith("--", StringComparison.Ordinal));
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            report.AppendLine("用法：L4D2ModManager.exe --download <创意工坊ID> [--dir=<目标目录>] [--probe]");
+            report.AppendLine("  --probe   只探测通道与直链，不实际下载");
+            return 2;
+        }
+
+        var probeOnly = args.Any(a => a.Equals("--probe", StringComparison.OrdinalIgnoreCase));
+        var dirOption = args.FirstOrDefault(a => a.StartsWith("--dir=", StringComparison.OrdinalIgnoreCase));
+        var library = new ModLibraryService();
+
+        var destination = dirOption != null
+            ? dirOption.Substring("--dir=".Length).Trim('"')
+            : Path.Combine(AppPaths.Root, "downloads");
+        Directory.CreateDirectory(destination);
+
+        report.AppendLine($"创意工坊 ID：{id}");
+        report.AppendLine($"目标目录：{destination}");
+        report.AppendLine();
+        report.AppendLine("下载通道：");
+
+        var manager = library.Downloads;
+        foreach (var provider in manager.Providers)
+        {
+            bool handle;
+            try
+            {
+                handle = provider.CanHandle(
+                    new DownloadTask { WorkshopId = id },
+                    new WorkshopItemInfo { PublishedFileId = id, Available = true });
+            }
+            catch (Exception ex)
+            {
+                report.AppendLine($"  · {provider.Name} → 检查失败：{ex.Message}");
+                continue;
+            }
+
+            report.AppendLine($"  · {provider.Name}（{provider.Description}）→ {(handle ? "可尝试" : "跳过")}");
+        }
+
+        if (probeOnly)
+        {
+            report.AppendLine();
+            report.AppendLine("（--probe：未实际下载）");
+            return 0;
+        }
+
+        report.AppendLine();
+
+        string? taskId = null;
+        var events = new ManualResetEventSlim(false);
+        manager.TaskUpdated += t =>
+        {
+            if (t.Id != taskId) return;
+            var total = t.TotalBytes > 0 ? (t.TotalBytes / 1048576.0).ToString("0.0") : "?";
+            Console.WriteLine($"  [{t.Status}] {t.DownloadedBytes / 1048576.0:0.0} MB / {total} MB  {t.StatusDetail}");
+        };
+        manager.DownloadCompleted += (t, path) =>
+        {
+            if (t.Id == taskId) events.Set();
+        };
+
+        var task = manager.EnqueueById(id, destination);
+        taskId = task.Id;
+
+        var finished = events.Wait(TimeSpan.FromMinutes(30));
+
+        report.AppendLine();
+        report.AppendLine($"通道：{task.ProviderName ?? "（未确定）"}");
+        report.AppendLine($"状态：{task.Status}");
+        if (!string.IsNullOrWhiteSpace(task.FinalFilePath)) report.AppendLine($"文件：{task.FinalFilePath}");
+        if (!string.IsNullOrWhiteSpace(task.Error)) report.AppendLine($"错误：{task.Error}");
+        if (!finished) report.AppendLine("（等待超时）");
+
+        return task.Status == DownloadStatus.Completed ? 0 : 1;
+    }
+
     private static bool TryRunHeadless(string[] args, out int exitCode)
     {
         exitCode = 0;
@@ -214,7 +298,7 @@ public partial class App : Application
 
         var command = args[0].Trim().ToLowerInvariant();
 
-        if (command is not ("--version" or "--help" or "-h" or "--diagnose" or "--scan" or "--uninstall" or "--selftest-ui" or "--remove-leftover"))
+        if (command is not ("--version" or "--help" or "-h" or "--diagnose" or "--scan" or "--uninstall" or "--selftest-ui" or "--remove-leftover" or "--download"))
             return false;
 
         AttachConsole(-1);
@@ -244,6 +328,7 @@ public partial class App : Application
                 report.AppendLine("  L4D2ModManager.exe --version       输出版本信息");
                 report.AppendLine("  L4D2ModManager.exe --uninstall     卸载程序（--silent 静默卸载，--removedata 同时删除用户数据）");
                 report.AppendLine("  L4D2ModManager.exe --selftest-ui   加载全部界面与模板做自检（不显示窗口，可带一个 Mod 目录参数）");
+                report.AppendLine("  L4D2ModManager.exe --download <工坊ID> [--dir=目录] [--probe]   命令行下载创意工坊 Mod（--probe 只探测通道与直链）");
                 break;
 
             case "--selftest-ui":
@@ -510,6 +595,10 @@ public partial class App : Application
             }
             case "--diagnose":
                 AppendDiagnostics(report);
+                break;
+
+            case "--download":
+                exitCode = RunDownload(args, report);
                 break;
 
             case "--scan":

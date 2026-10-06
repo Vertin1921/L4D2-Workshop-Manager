@@ -27,6 +27,8 @@ public sealed class DownloadManager : IDisposable
 
         _providers = new List<IWorkshopDownloadProvider>
         {
+            // 大陆优先：国内可直连的工坊镜像站 + 加速线路；镜像站不可达时会自己快速跳过，不拖慢其它通道
+            new MirrorWorkshopProvider(),
             new HttpWorkshopProvider(),
             new SubscribedContentProvider(config, steamPaths),
             new SteamCmdProvider(config, steamPaths),
