@@ -592,7 +592,7 @@ public sealed class VoiceViewModel : ObservableObject
         await InstallInternalAsync(source, card.Info, Path.GetFileName(choose.FileName));
     }
 
-    private async Task InstallInternalAsync(VoiceSourceInfo source, VoiceCharacterInfo character, string modName)
+    private async Task<VoiceOperationResult?> InstallInternalAsync(VoiceSourceInfo source, VoiceCharacterInfo character, string modName, bool silent = false, bool skipConfirm = false)
     {
         var targets = string.IsNullOrWhiteSpace(GameRoot)
             ? new List<string>()
@@ -627,42 +627,52 @@ public sealed class VoiceViewModel : ObservableObject
 
         if (!source.FromVpk && targets.Count == 0)
         {
-            _services.Dialogs.Error($"没有找到 {character.VoiceRelativeDirectory} 目录，无法安装。\r\n" +
-                                    "请确认游戏文件完整。", "语音目录不存在");
-            return;
+            if (!silent)
+            {
+                _services.Dialogs.Error($"没有找到 {character.VoiceRelativeDirectory} 目录，无法安装。\r\n" +
+                                        "请确认游戏文件完整。", "语音目录不存在");
+            }
+            return null;
         }
 
         if (source.FromVpk && !Directory.Exists(addonsDirectory))
         {
-            _services.Dialogs.Error($"找不到 addons 目录：{addonsDirectory}\r\n请确认游戏文件完整。", "addons 目录不存在");
-            return;
+            if (!silent) _services.Dialogs.Error($"找不到 addons 目录：{addonsDirectory}\r\n请确认游戏文件完整。", "addons 目录不存在");
+            return null;
         }
 
-        if (!_services.Dialogs.Confirm(confirmText, "确认安装语音 Mod", null, "备份并安装")) return;
+        if (!skipConfirm && !_services.Dialogs.Confirm(confirmText, "确认安装语音 Mod", null, "备份并安装")) return null;
 
         IsBusy = true;
         StatusText = "正在安装…";
+        VoiceOperationResult? result = null;
+
         try
         {
             var progress = new Progress<string>(message => StatusText = message);
-            var result = await Task.Run(() => _manager.Install(GameRoot, source, character, modName, progress)).ConfigureAwait(true);
+            result = await Task.Run(() => _manager.Install(GameRoot, source, character, modName, progress)).ConfigureAwait(true);
 
             StatusText = result.Message;
             Refresh();
 
-            if (result.Success)
+            if (!silent)
             {
-                _services.Dialogs.Info(result.Message + "\r\n\r\n" + CacheNoticeText, "安装完成", string.Join("\r\n", result.Log));
-            }
-            else
-            {
-                _services.Dialogs.Error(result.Message, "安装失败", string.Join("\r\n", result.Log));
+                if (result.Success)
+                {
+                    _services.Dialogs.Info(result.Message + "\r\n\r\n" + CacheNoticeText, "安装完成", string.Join("\r\n", result.Log));
+                }
+                else
+                {
+                    _services.Dialogs.Error(result.Message, "安装失败", string.Join("\r\n", result.Log));
+                }
             }
         }
         finally
         {
             IsBusy = false;
         }
+
+        return result;
     }
 
     private async Task BackupAsync(VoiceCharacterCard? card)
@@ -881,8 +891,11 @@ public sealed class VoiceViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 批量安装：选中的每一项都走既有的「检测角色 → ZIP 备份 → 清空原语音 → 整包粘贴」流程，
-    /// 逐项独立执行（某一项失败不影响后面的），最后给出汇总。
+    /// 批量安装多个角色的语音 Mod：
+    ///   ① 先全部识别一遍，得出"将替换哪些角色"的计划（不做任何替换）；
+    ///   ② 同一个角色有多个语音包时，弹窗让用户选（列表里显示各自的修改日期）；
+    ///   ③ 开始前一次性展示计划（替换哪几个角色、各自用哪个包），确认后统一执行；
+    ///   ④ 执行时不再逐项弹"安装完成"，全部结束后只汇报一次：谁被替换了、谁失败了。
     /// </summary>
     private async Task InstallBatchAsync(IReadOnlyList<string>? paths)
     {
@@ -892,32 +905,145 @@ public sealed class VoiceViewModel : ObservableObject
             .ToList() ?? new List<string>();
 
         if (list.Count == 0) return;
+
+        // 只选了一个：走原来的单份流程（有详细确认框与完成提示）
         if (list.Count == 1) { await AcceptDropAsync(list[0], null); return; }
 
-        var ok = 0;
-        var problems = new List<string>();
+        // ① 识别：路径 → 角色 + 修改日期（此阶段绝不改动任何文件）
+        var groups = new Dictionary<string, List<(string Path, string Name, DateTime Date, VoiceCharacterInfo Character)>>(StringComparer.OrdinalIgnoreCase);
+        var skipped = new List<string>();
 
-        for (var i = 0; i < list.Count; i++)
+        foreach (var path in list)
         {
-            var name = Path.GetFileName(list[i].TrimEnd(Path.DirectorySeparatorChar));
-            StatusText = $"批量安装（{i + 1}/{list.Count}）：{name}";
+            var name = Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar));
+            DateTime date;
+            try { date = Directory.Exists(path) ? Directory.GetLastWriteTime(path) : File.GetLastWriteTime(path); }
+            catch { date = DateTime.MinValue; }
 
             try
             {
-                await AcceptDropAsync(list[i], null);
-                ok++;
+                var source = _manager.ScanSource(path);
+                if (!source.Success || source.Character == null)
+                {
+                    skipped.Add($"{name}（{source.Error ?? "无法识别角色"}）");
+                    continue;
+                }
+
+                var key = source.Character.Codename;
+                if (!groups.TryGetValue(key, out var bucket))
+                {
+                    bucket = new List<(string, string, DateTime, VoiceCharacterInfo)>();
+                    groups[key] = bucket;
+                }
+
+                bucket.Add((path, name, date, source.Character));
             }
             catch (Exception ex)
             {
-                problems.Add($"{name}：{ex.Message}");
-                Log.Warn($"批量安装「{name}」失败：{ex.Message}");
+                skipped.Add($"{name}（{ex.Message}）");
             }
         }
 
-        StatusText = problems.Count == 0
-            ? $"批量安装完成：{ok}/{list.Count} 个成功。"
-            : $"批量安装完成：{ok}/{list.Count} 个成功，{problems.Count} 个失败（{string.Join("；", problems)}）。";
-        Log.Info(StatusText);
+        // ② 同角色多包 → 让用户选（显示修改日期，新→旧）
+        var plan = new List<(string Path, string Name, DateTime Date, VoiceCharacterInfo Character)>();
+
+        foreach (var bucket in groups.Values)
+        {
+            var candidates = bucket.OrderByDescending(c => c.Date).ToList();
+            var chosen = candidates[0];
+
+            if (candidates.Count > 1)
+            {
+                var labels = candidates.Select(c => $"{c.Date:yyyy-MM-dd HH:mm}　{c.Name}").ToList();
+                var picked = _services.Dialogs.Choose(
+                    $"{candidates[0].Character.DisplayName} 有 {candidates.Count} 个语音包，请选择要安装的哪一个（按修改时间从新到旧）：",
+                    "选择要安装的语音包", labels);
+
+                if (picked == null) continue;                  // 取消 → 该角色跳过
+                var index = labels.IndexOf(picked);
+                if (index >= 0) chosen = candidates[index];
+            }
+
+            plan.Add(chosen);
+        }
+
+        if (plan.Count == 0)
+        {
+            _services.Dialogs.Error(
+                "没有可安装的语音 Mod。" + (skipped.Count > 0 ? "\r\n\r\n已跳过：\r\n" + string.Join("\r\n", skipped) : string.Empty),
+                "批量安装语音 Mod");
+            return;
+        }
+
+        // ③ 开始前一次性展示计划
+        var planText = string.Join("\r\n", plan.Select(p => $"· {p.Character.DisplayName}　←　{p.Name}（{p.Date:yyyy-MM-dd HH:mm}）"));
+        var skippedText = skipped.Count > 0 ? "\r\n\r\n将跳过：\r\n" + string.Join("\r\n", skipped) : string.Empty;
+
+        if (!_services.Dialogs.Confirm(
+                $"将替换以下 {plan.Count} 个角色的语音：\r\n\r\n{planText}{skippedText}\r\n\r\n" +
+                "每个角色都会：把该角色语音目录打包成 ZIP 备份 → 验证 → 清空原语音 → 写入新的语音包。\r\n" +
+                "任一项失败都不影响其它项，全部结束后统一汇报。",
+                "批量安装语音 Mod", null, "开始替换"))
+        {
+            return;
+        }
+
+        // ④ 统一执行（静默：不逐项弹完成框）
+        var done = new List<string>();
+        var failed = new List<string>();
+
+        IsBusy = true;
+        try
+        {
+            for (var i = 0; i < plan.Count; i++)
+            {
+                var item = plan[i];
+                StatusText = $"批量替换（{i + 1}/{plan.Count}）：{item.Character.DisplayName} ← {item.Name}";
+
+                try
+                {
+                    var source = _manager.ScanSource(item.Path);
+                    if (!source.Success || source.Character == null)
+                    {
+                        failed.Add($"{item.Character.DisplayName}：无法读取 {item.Name}");
+                        continue;
+                    }
+
+                    var result = await InstallInternalAsync(source, source.Character, item.Name, silent: true, skipConfirm: true);
+
+                    if (result == null) failed.Add($"{item.Character.DisplayName}：已取消或目录缺失");
+                    else if (result.Success) done.Add($"{item.Character.DisplayName}　←　{item.Name}");
+                    else failed.Add($"{item.Character.DisplayName}：{result.Message}");
+                }
+                catch (Exception ex)
+                {
+                    failed.Add($"{item.Character.DisplayName}：{ex.Message}");
+                }
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+            Refresh();
+        }
+
+        // ⑤ 只汇报一次
+        var summary = $"已替换 {done.Count} 个角色：\r\n" +
+                      (done.Count == 0 ? "（无）" : string.Join("\r\n", done.Select(d => "· " + d)));
+
+        if (failed.Count > 0)
+            summary += $"\r\n\r\n失败 {failed.Count} 项：\r\n" + string.Join("\r\n", failed.Select(f => "· " + f));
+
+        if (skipped.Count > 0)
+            summary += $"\r\n\r\n跳过 {skipped.Count} 项：\r\n" + string.Join("\r\n", skipped.Select(s => "· " + s));
+
+        summary += "\r\n\r\n" + CacheNoticeText;
+
+        StatusText = $"批量安装完成：成功 {done.Count}，失败 {failed.Count}";
+        Log.Info(StatusText + "\r\n" + summary);
+
+        if (failed.Count > 0) _services.Dialogs.Error(summary, "批量安装语音 Mod");
+        else _services.Dialogs.Info(summary, "批量安装完成");
     }
 
     private bool EnsureGameRoot()
