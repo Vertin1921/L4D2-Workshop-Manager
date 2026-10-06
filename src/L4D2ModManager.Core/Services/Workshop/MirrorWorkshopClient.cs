@@ -116,6 +116,100 @@ public static class MirrorWorkshopClient
         }
     }
 
+    /// <summary>
+    /// 按关键词搜索工坊条目（走镜像站，国内不挂梯子也能用）。
+    /// 返回顺序未定义：镜像站的 sort 参数不保证生效，由调用方按字段自行排序。
+    /// </summary>
+    public static async Task<IReadOnlyList<WorkshopItemInfo>> SearchAsync(
+        string? query,
+        int num = 40,
+        int page = 1,
+        CancellationToken cancellationToken = default)
+    {
+        var results = new List<WorkshopItemInfo>();
+
+        try
+        {
+            var parts = new List<string> { $"page={page}", $"num={num}" };
+            if (!string.IsNullOrWhiteSpace(query)) parts.Add("search=" + Uri.EscapeDataString(query!));
+            var url = $"{ApiBase}/query?" + string.Join("&", parts);
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Referrer = new Uri(MirrorReferer);
+
+            using var response = await Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Warn($"镜像站搜索返回 HTTP {(int)response.StatusCode}");
+                return results;
+            }
+
+            await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("items", out var items) &&
+                items.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var item in items.EnumerateArray())
+                {
+                    var parsed = ParseItem(item);
+                    if (parsed != null) results.Add(parsed);
+                }
+            }
+
+            Log.Info($"镜像站搜索完成：\"{query}\" → {results.Count} 条");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Warn($"镜像站搜索失败：{ex.Message}");
+        }
+
+        return results;
+    }
+
+    /// <summary>把镜像站列表项解析成条目信息。</summary>
+    private static WorkshopItemInfo? ParseItem(JsonElement item)
+    {
+        if (item.ValueKind != JsonValueKind.Object) return null;
+
+        var id = ReadString(item, "id");
+        if (string.IsNullOrWhiteSpace(id)) return null;
+
+        var info = new WorkshopItemInfo
+        {
+            PublishedFileId = id!,
+            Title = ReadString(item, "title") ?? string.Empty,
+            Description = ReadString(item, "description") ?? string.Empty,
+            Author = ReadString(item, "creator") ?? string.Empty,
+            CreatorName = ReadString(item, "creator_name"),
+            PreviewUrl = ReadString(item, "preview"),
+            FileUrl = ReadString(item, "file_url"),
+            Available = true,
+        };
+
+        if (TryReadNumber(item, "subscriptions", out var subs)) info.Subscriptions = (int)subs;
+        if (TryReadNumber(item, "favorited", out var fav)) info.Favorited = (int)fav;
+        if (TryReadNumber(item, "views", out var views)) info.Views = (int)views;
+
+        if (item.TryGetProperty("tags", out var tags) && tags.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var tag in tags.EnumerateArray())
+            {
+                var text = tag.ValueKind == JsonValueKind.String
+                    ? tag.GetString()
+                    : (ReadString(tag, "display_name") ?? ReadString(tag, "tag"));
+                if (!string.IsNullOrWhiteSpace(text)) info.Tags.Add(text!);
+            }
+        }
+
+        return info;
+    }
+
     private static string? ReadString(JsonElement element, string name)
     {
         if (!element.TryGetProperty(name, out var value)) return null;

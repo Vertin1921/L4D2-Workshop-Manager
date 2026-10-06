@@ -92,6 +92,43 @@
                             Opacity="0" />
                 </Grid>
             </Border>
+            <!-- 镜像站搜索 / 浏览结果：不依赖梯子 -->
+            <Border Grid.Row="2" Style="{StaticResource Card}" Padding="10,9" Margin="0,8,0,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top" Text="{Binding SearchSummary}" Style="{StaticResource Text.Muted}"
+                               FontSize="11.5" TextWrapping="Wrap" Margin="0,0,0,6" />
+                    <ListBox ItemsSource="{Binding SearchResults}" SelectedItem="{Binding SelectedResult}"
+                             MaxHeight="212" Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             HorizontalContentAlignment="Stretch">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Grid.Column="0" Source="{Binding PreviewUrl}" Width="76" Height="44"
+                                           Stretch="UniformToFill" />
+                                    <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="12.5"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding AuthorText}" Style="{StaticResource Text.Muted}"
+                                                   FontSize="11" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                        <TextBlock Text="{Binding TagText}" Style="{StaticResource Text.Muted}" FontSize="11"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="200" HorizontalAlignment="Right" />
+                                        <TextBlock Text="{Binding SizeText}" Style="{StaticResource Text.Muted}" FontSize="11"
+                                                   HorizontalAlignment="Right" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </Border>
         </Grid>
 
         <!-- ================= 右侧信息面板 ================= -->

@@ -29,6 +29,10 @@ public sealed class WorkshopViewModel : ObservableObject
     private WorkshopItemInfo? _currentItem;
     private string _manualId = string.Empty;
     private string? _lastFetchedId;
+    private readonly ObservableCollection<WorkshopItemInfo> _searchResults = new();
+    private WorkshopItemInfo? _selectedResult;
+    private bool _isSearching;
+    private string _searchSummary = "点「搜索」按关键词找 Mod，或点「热门 / 最新 / 最高评分」浏览 —— 全部走大陆镜像站，不挂梯子也能用。";
 
     public WorkshopViewModel(AppServices services)
     {
@@ -42,10 +46,12 @@ public sealed class WorkshopViewModel : ObservableObject
         ForwardCommand = new RelayCommand(_ => ForwardRequested?.Invoke(), () => CanGoForward);
         ReloadCommand = new RelayCommand(_ => ReloadRequested?.Invoke());
         GoCommand = new RelayCommand(_ => NavigateTo(AddressText));
-        SearchCommand = new RelayCommand(_ => NavigateTo(AppInfo.BuildSearchUrl(SearchText)));
-        BrowseTrendCommand = new RelayCommand(_ => NavigateTo(AppInfo.BuildSearchUrl(null, "trend")));
-        BrowseRecentCommand = new RelayCommand(_ => NavigateTo(AppInfo.BuildSearchUrl(null, "mostrecent")));
-        BrowseTopRatedCommand = new RelayCommand(_ => NavigateTo(AppInfo.BuildSearchUrl(null, "toprated")));
+        // 搜索 / 浏览优先走大陆镜像站（不依赖 steamcommunity.com，国内不挂梯子可用）；
+        // 镜像站不可用时方法内部会回退到内置浏览器导航。
+        SearchCommand = new AsyncRelayCommand(() => RunMirrorSearchAsync(SearchText, MirrorSortMode.Popular), () => !IsSearching);
+        BrowseTrendCommand = new AsyncRelayCommand(() => RunMirrorSearchAsync(null, MirrorSortMode.Popular), () => !IsSearching);
+        BrowseRecentCommand = new AsyncRelayCommand(() => RunMirrorSearchAsync(null, MirrorSortMode.Newest), () => !IsSearching);
+        BrowseTopRatedCommand = new AsyncRelayCommand(() => RunMirrorSearchAsync(null, MirrorSortMode.MostFavorited), () => !IsSearching);
         FetchInfoCommand = new AsyncRelayCommand(FetchCurrentInfoAsync, () => !IsFetching, ex => ReportError("获取工坊信息失败", ex));
         DownloadCommand = new AsyncRelayCommand(DownloadCurrentAsync, () => !IsFetching, ex => ReportError("下载失败", ex));
         DownloadManyCommand = new AsyncRelayCommand(DownloadManyAsync, () => !IsFetching, ex => ReportError("批量下载失败", ex));
@@ -90,13 +96,13 @@ public sealed class WorkshopViewModel : ObservableObject
 
     public RelayCommand GoCommand { get; }
 
-    public RelayCommand SearchCommand { get; }
+    public AsyncRelayCommand SearchCommand { get; }
 
-    public RelayCommand BrowseTrendCommand { get; }
+    public AsyncRelayCommand BrowseTrendCommand { get; }
 
-    public RelayCommand BrowseRecentCommand { get; }
+    public AsyncRelayCommand BrowseRecentCommand { get; }
 
-    public RelayCommand BrowseTopRatedCommand { get; }
+    public AsyncRelayCommand BrowseTopRatedCommand { get; }
 
     public AsyncRelayCommand FetchInfoCommand { get; }
 
@@ -118,6 +124,99 @@ public sealed class WorkshopViewModel : ObservableObject
     {
         get => _searchText;
         set => Set(ref _searchText, value);
+    }
+
+    /// <summary>镜像站搜索 / 浏览结果（不依赖 steamcommunity，国内直连）。</summary>
+    public ObservableCollection<WorkshopItemInfo> SearchResults => _searchResults;
+
+    public bool IsSearching
+    {
+        get => _isSearching;
+        private set => Set(ref _isSearching, value);
+    }
+
+    /// <summary>结果区上方的说明文字（也可以当状态提示看）。</summary>
+    public string SearchSummary
+    {
+        get => _searchSummary;
+        private set => Set(ref _searchSummary, value);
+    }
+
+    /// <summary>选中某条结果 → 自动拉取详情（右侧面板），随后可直接点「下载 Mod」。</summary>
+    public WorkshopItemInfo? SelectedResult
+    {
+        get => _selectedResult;
+        set
+        {
+            if (!Set(ref _selectedResult, value) || value == null) return;
+
+            ManualId = value.PublishedFileId;
+            AddressText = value.PageUrl;
+            _ = FetchInfoAsync(value.PublishedFileId);
+        }
+    }
+
+    private enum MirrorSortMode
+    {
+        Popular,
+        Newest,
+        MostFavorited,
+    }
+
+    /// <summary>
+    /// 用大陆镜像站做搜索 / 浏览：不依赖 steamcommunity.com。
+    /// 镜像站没结果或不可达时，回退到原来的内置浏览器导航（那时才需要梯子）。
+    /// </summary>
+    private async Task RunMirrorSearchAsync(string? query, MirrorSortMode mode)
+    {
+        IsSearching = true;
+        SearchSummary = string.IsNullOrWhiteSpace(query)
+            ? "正在从大陆镜像站获取列表…"
+            : $"正在镜像站搜索「{query}」…";
+
+        try
+        {
+            var items = await MirrorWorkshopClient.SearchAsync(query, num: 40).ConfigureAwait(true);
+
+            if (items.Count == 0)
+            {
+                SearchSummary = "镜像站没有返回结果，已改用内置浏览器打开工坊页面（这一步可能需要梯子）。";
+                var url = string.IsNullOrWhiteSpace(query)
+                    ? AppInfo.BuildSearchUrl(null, mode switch
+                    {
+                        MirrorSortMode.Newest => "mostrecent",
+                        MirrorSortMode.MostFavorited => "toprated",
+                        _ => "trend",
+                    })
+                    : AppInfo.BuildSearchUrl(query);
+                NavigateTo(url);
+                return;
+            }
+
+            var sorted = mode switch
+            {
+                MirrorSortMode.Newest => items.OrderByDescending(i => i.PublishedFileId, StringComparer.Ordinal).ToList(),
+                MirrorSortMode.MostFavorited => items.OrderByDescending(i => i.Favorited).ThenByDescending(i => i.Subscriptions).ToList(),
+                _ => items.OrderByDescending(i => i.Subscriptions).ThenByDescending(i => i.Favorited).ToList(),
+            };
+
+            _searchResults.Clear();
+            foreach (var entry in sorted) _searchResults.Add(entry);
+
+            SearchSummary = $"镜像站返回 {sorted.Count} 条" +
+                            (string.IsNullOrWhiteSpace(query) ? string.Empty : $"（关键词：{query}）") +
+                            " — 点选一条即可查看信息并下载。";
+            StatusText = SearchSummary;
+        }
+        catch (Exception ex)
+        {
+            SearchSummary = "镜像站搜索失败：" + ex.Message;
+            Log.Warn("镜像站搜索异常：" + ex.Message);
+        }
+        finally
+        {
+            IsSearching = false;
+        }
     }
 
     private sealed class WorkshopMeta
