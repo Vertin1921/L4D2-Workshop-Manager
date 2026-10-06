@@ -1113,6 +1113,31 @@ public sealed class VoiceManager
             // 关键安全规则：备份失败绝不继续
             return VoiceOperationResult.Fail(backupResult.Message, log);
         }
+        // ★ 完全替换（用户选择的语义）：备份已创建并通过完整性验证，
+        //   现在先"卸载原文件"——清空该角色语音目录下的全部语音资源（不动其它文件），
+        //   随后再把语音包整包粘贴进去。
+        //   被清掉的原版文件全都在刚才那个 ZIP 备份里，随时可用「恢复原版」还原。
+        var cleared = 0;
+        foreach (var directory in targets)
+        {
+            foreach (var existingFile in SafeEnumerate(directory))
+            {
+                if (!VoiceCharacters.IsVoiceFile(existingFile)) continue;
+
+                try
+                {
+                    File.SetAttributes(existingFile, FileAttributes.Normal);
+                    File.Delete(existingFile);
+                    cleared++;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warn($"清空原语音文件失败：{existingFile} -> {ex.Message}");
+                }
+            }
+        }
+
+        Step($"已按「完全替换」清空 {cleared} 个原语音文件（原版已备份到 {backup.FileName}，可一键还原）");
 
         var tempDirectory = Path.Combine(TempDirectory, Guid.NewGuid().ToString("N"));
         VpkArchive? archive = null;
