@@ -1121,7 +1121,7 @@ public sealed class VoiceViewModel : ObservableObject
         Ui.InvokeAsync(() =>
         {
             LogLines.Add(line);
-            while (LogLines.Count > 500) LogLines.RemoveAt(0);
+            while (LogLines.Count > 300) LogLines.RemoveAt(0);
             LogText = string.Join(Environment.NewLine, LogLines);
         });
     }

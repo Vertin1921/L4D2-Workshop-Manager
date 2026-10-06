@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using L4D2ModManager.App.ViewModels;
 
@@ -37,6 +37,31 @@ public partial class VoiceView : UserControl
         while (source != null)
         {
             if (source is FrameworkElement element && element.DataContext is VoiceCharacterCard card) return card;
+            source = System.Windows.Media.VisualTreeHelper.GetParent(source);
+        }
+
+        return null;
+    }
+    /// <summary>
+    /// 把鼠标滚轮转交给外层的整页滚动区：
+    /// 鼠标停在备份列表等内部可滚动控件上时，滚轮会被它们吃掉，导致"划不动、要移出这块才能划"。
+    /// </summary>
+    private void InnerScroll_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+    {
+        if (e.Handled) return;
+
+        var scroller = FindAncestorScrollViewer(sender as DependencyObject);
+        if (scroller == null) return;
+
+        e.Handled = true;
+        scroller.ScrollToVerticalOffset(scroller.VerticalOffset - e.Delta);
+    }
+
+    private static System.Windows.Controls.ScrollViewer? FindAncestorScrollViewer(DependencyObject? source)
+    {
+        while (source != null)
+        {
+            if (source is System.Windows.Controls.ScrollViewer viewer) return viewer;
             source = System.Windows.Media.VisualTreeHelper.GetParent(source);
         }
 

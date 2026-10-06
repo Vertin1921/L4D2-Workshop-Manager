@@ -194,6 +194,7 @@
 
                         <!-- 关掉自带滚动：否则鼠标停在备份列表上时滚轮被它吃掉，整页就"划不动"了 -->
                         <ListBox Style="{StaticResource ListBox.Clean}" ItemsSource="{Binding Backups}"
+                                 PreviewMouseWheel="InnerScroll_PreviewMouseWheel"
                                  ScrollViewer.VerticalScrollBarVisibility="Disabled"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  SelectedItem="{Binding SelectedBackup}">
@@ -253,7 +254,7 @@
         <Border Grid.Row="3" Style="{StaticResource Card.Static}" Padding="12,8" Margin="0,0,0,12">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="操作日志" Style="{StaticResource Text.Section}" FontSize="12" />
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Height="132">
                     <TextBlock Text="{Binding LogText}" FontFamily="{StaticResource Font.Mono}" FontSize="11"
                                Foreground="{StaticResource Brush.TextMuted}" TextWrapping="Wrap" />
                 </ScrollViewer>

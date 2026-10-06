@@ -10,7 +10,7 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" MinWidth="420" />
+            <ColumnDefinition Width="*" MinWidth="260" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
@@ -25,26 +25,26 @@
             <!-- 工具栏：左上角固定「下载 Mod」按钮 -->
             <Border Grid.Row="0" Style="{StaticResource Card}" Padding="10,9" Margin="0,0,0,8">
                 <StackPanel>
-                    <StackPanel Orientation="Horizontal">
+                    <WrapPanel>
                         <Button Style="{StaticResource Button.Primary}" Content="⬇  下载 Mod" MinWidth="118"
                                 Command="{Binding DownloadCommand}"
                                 ToolTip="解析当前工坊物品页并下载（无需先点「获取信息」）" />
                         <Button Style="{StaticResource Button.Ghost}" Content="⬇ 下载合集" Margin="6,0,0,0"
                                 Click="DownloadCollection_Click"
                                 ToolTip="抓取当前页面上的所有工坊物品（合集页通常含几十个 Mod）并批量加入下载队列" />
-                        <Button Style="{StaticResource Button.Icon}" Content="◀" Margin="10,0,0,0" Command="{Binding BackCommand}" ToolTip="后退" />
-                        <Button Style="{StaticResource Button.Icon}" Content="▶" Margin="2,0,0,0" Command="{Binding ForwardCommand}" ToolTip="前进" />
-                        <Button Style="{StaticResource Button.Icon}" Content="⟳" Margin="2,0,0,0" Command="{Binding ReloadCommand}" ToolTip="刷新" />
-                        <Button Style="{StaticResource Button.Icon}" Content="🏠" Margin="2,0,0,0" Command="{Binding HomeCommand}" ToolTip="创意工坊首页" />
+                        <Button Style="{StaticResource Button.Icon}" Content="◀" Margin="10,0,8,8" Command="{Binding BackCommand}" ToolTip="后退" />
+                        <Button Style="{StaticResource Button.Icon}" Content="▶" Margin="2,0,8,8" Command="{Binding ForwardCommand}" ToolTip="前进" />
+                        <Button Style="{StaticResource Button.Icon}" Content="⟳" Margin="2,0,8,8" Command="{Binding ReloadCommand}" ToolTip="刷新" />
+                        <Button Style="{StaticResource Button.Icon}" Content="🏠" Margin="2,0,8,8" Command="{Binding HomeCommand}" ToolTip="创意工坊首页" />
 
-                        <Grid Width="300" Margin="8,0,0,0">
+                        <Grid MinWidth="180" Width="Auto" Margin="8,0,8,8">
                             <TextBox Style="{StaticResource TextBox.Dark}"
                                      Text="{Binding AddressText, UpdateSourceTrigger=PropertyChanged}"
                                      KeyDown="AddressBox_KeyDown" />
                         </Grid>
-                        <Button Style="{StaticResource Button.Ghost}" Content="前往" Margin="6,0,0,0" Command="{Binding GoCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="前往" Margin="6,0,8,8" Command="{Binding GoCommand}" />
 
-                        <Grid Width="230" Margin="10,0,0,0">
+                        <Grid MinWidth="160" Width="Auto" Margin="10,0,8,8">
                             <TextBox Style="{StaticResource TextBox.Dark}"
                                      Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                      KeyDown="SearchBox_KeyDown" />
@@ -52,12 +52,12 @@
                                        VerticalAlignment="Center" IsHitTestVisible="False"
                                        Visibility="{Binding SearchText, Converter={StaticResource NullToVisibility}, ConverterParameter=Invert}" />
                         </Grid>
-                        <Button Style="{StaticResource Button.Ghost}" Content="搜索" Margin="6,0,0,0" Command="{Binding SearchCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="搜索" Margin="6,0,8,8" Command="{Binding SearchCommand}" />
 
-                        <Button Style="{StaticResource Button.Ghost}" Content="热门" Margin="8,0,0,0" Command="{Binding BrowseTrendCommand}" />
-                        <Button Style="{StaticResource Button.Ghost}" Content="最新" Margin="4,0,0,0" Command="{Binding BrowseRecentCommand}" />
-                        <Button Style="{StaticResource Button.Ghost}" Content="最高评分" Margin="4,0,0,0" Command="{Binding BrowseTopRatedCommand}" />
-                    </StackPanel>
+                        <Button Style="{StaticResource Button.Ghost}" Content="热门" Margin="8,0,8,8" Command="{Binding BrowseTrendCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="最新" Margin="4,0,8,8" Command="{Binding BrowseRecentCommand}" />
+                        <Button Style="{StaticResource Button.Ghost}" Content="最高评分" Margin="4,0,0,8" Command="{Binding BrowseTopRatedCommand}" />
+                    </WrapPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                         <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Muted}" FontSize="11.5"
